@@ -12,10 +12,11 @@ import Transactions from './pages/Transactions';
 import Categories from './pages/Categories';
 import MonthlyExpenses from './pages/MonthlyExpenses';
 import FamilySettings from './pages/FamilySettings';
+import ResetPassword from './pages/ResetPassword';
 import Layout from './components/Layout';
 
 const ProtectedRoute = ({ children }) => {
-  const { token, loading } = useContext(AuthContext);
+  const { token, user, loading } = useContext(AuthContext);
   
   if (loading) return <div className="auth-container">Loading...</div>;
   if (!token) return <Navigate to="/login" />;
@@ -24,10 +25,12 @@ const ProtectedRoute = ({ children }) => {
 };
 
 const PublicRoute = ({ children }) => {
-  const { token, loading } = useContext(AuthContext);
+  const { token, user, loading } = useContext(AuthContext);
   
   if (loading) return <div className="auth-container">Loading...</div>;
-  if (token) return <Navigate to="/dashboard" />;
+  if (token) {
+    return <Navigate to={user?.family_id ? "/dashboard" : "/onboarding"} />;
+  }
   
   return children;
 };
@@ -49,6 +52,12 @@ function App() {
             <Register />
           </PublicRoute>
         } />
+
+        <Route path="/reset-password" element={
+          <PublicRoute>
+            <ResetPassword />
+          </PublicRoute>
+        } />
         
         <Route path="/onboarding" element={
           <ProtectedRoute>
@@ -67,10 +76,19 @@ function App() {
           <Route path="/family" element={<FamilySettings />} />
         </Route>
 
-        <Route path="/" element={<Navigate to="/dashboard" />} />
+        <Route path="/" element={
+          <ProtectedRoute>
+            <HomeRedirect />
+          </ProtectedRoute>
+        } />
       </Routes>
     </Router>
   );
 }
+
+const HomeRedirect = () => {
+  const { user } = useContext(AuthContext);
+  return <Navigate to={user?.family_id ? "/dashboard" : "/onboarding"} replace />;
+};
 
 export default App;

@@ -1,4 +1,5 @@
 import { useState, useContext, useMemo, useCallback } from 'react';
+import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { useWallets } from '../hooks/useWallets';
@@ -96,15 +97,7 @@ const Dashboard = () => {
   }, [transactions, activeWallet]);
 
   if (!user?.family_id) {
-    return (
-      <div className="flex items-center justify-center h-full p-6">
-        <Card className="text-center max-w-md w-full py-12">
-          <Activity size={48} className="mx-auto text-gray-500 mb-4 opacity-50" />
-          <h2 className="text-xl font-semibold mb-2">{t('settingUpSpace')}</h2>
-          <p className="text-gray-400">{t('pleaseWait')}</p>
-        </Card>
-      </div>
-    );
+    return <Navigate to="/onboarding" replace />;
   }
 
   // Get theme for active card

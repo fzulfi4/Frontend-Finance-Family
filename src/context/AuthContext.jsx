@@ -7,6 +7,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('access_token'));
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const fetchUser = async () => {
     const userId = localStorage.getItem('user_id');
@@ -31,26 +32,63 @@ export const AuthProvider = ({ children }) => {
   }, [token]);
 
   const login = async (email, password) => {
-    const res = await api.post('/auth/login', { email, password });
-    const { access_token, user_id } = res.data.data;
-    
-    localStorage.setItem('access_token', access_token);
-    localStorage.setItem('user_id', user_id);
-    
-    setToken(access_token);
-    return res.data;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.post('/auth/login', { email, password });
+      const { access_token, user_id } = res.data.data;
+      
+      localStorage.setItem('access_token', access_token);
+      localStorage.setItem('user_id', user_id);
+      
+      setToken(access_token);
+      return res.data;
+    } catch (err) {
+      const rawMsg = err.response?.data?.error || '';
+      let msg = 'errorGeneralAuth';
+      
+      if (rawMsg.includes('invalid login credentials') || rawMsg.includes('Invalid login credentials')) {
+        msg = 'errorInvalidCredentials';
+      } else if (rawMsg.includes('User not found')) {
+        msg = 'errorUserNotFound';
+      } else if (rawMsg.includes('too many requests')) {
+        msg = 'errorTooManyRequests';
+      } else if (rawMsg.includes('Email not confirmed')) {
+        msg = 'errorEmailNotVerified';
+      }
+      
+      setError(msg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const register = async (email, password, full_name) => {
-    const res = await api.post('/auth/register', { email, password, full_name });
-    // If auto-confirm is off, token will be empty.
-    const { access_token, user_id } = res.data.data;
-    if (access_token) {
-      localStorage.setItem('access_token', access_token);
-      localStorage.setItem('user_id', user_id);
-      setToken(access_token);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.post('/auth/register', { email, password, full_name });
+      const { access_token, user_id } = res.data.data;
+      if (access_token) {
+        localStorage.setItem('access_token', access_token);
+        localStorage.setItem('user_id', user_id);
+        setToken(access_token);
+      }
+      return res.data;
+    } catch (err) {
+      const rawMsg = err.response?.data?.error || '';
+      let msg = 'errorGeneralAuth';
+      
+      if (rawMsg.includes('User already registered')) {
+        msg = 'Email sudah terdaftar.';
+      }
+      
+      setError(msg);
+      throw err;
+    } finally {
+      setLoading(false);
     }
-    return res.data;
   };
 
   const logout = () => {
@@ -68,8 +106,34 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const updatePassword = async (password) => {
+    const res = await api.put('/auth/update-password', { password });
+    return res.data;
+  };
+
+  const forgotPassword = async (email) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.post('/auth/forgot-password', { email });
+      return res.data;
+    } catch (err) {
+      const rawMsg = err.response?.data?.error || '';
+      let msg = 'errorGeneralAuth';
+      
+      if (rawMsg.includes('User not found')) {
+        msg = 'errorUserNotFound';
+      }
+      
+      setError(msg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, setUser, updateProfile, fetchUser }}>
+    <AuthContext.Provider value={{ user, token, loading, error, setError, login, register, logout, setUser, updateProfile, fetchUser, updatePassword, forgotPassword }}>
       {children}
     </AuthContext.Provider>
   );

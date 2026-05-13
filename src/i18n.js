@@ -104,6 +104,11 @@ const resources = {
       registrationSuccessful: 'Pendaftaran berhasil! Silakan periksa email Anda untuk memverifikasi akun Anda.',
       creatingAccount: 'Membuat Akun...',
       signUp: 'Daftar',
+      errorInvalidCredentials: 'Alamat email atau kata sandi tidak sesuai.',
+      errorUserNotFound: 'Pengguna tidak ditemukan.',
+      errorTooManyRequests: 'Terlalu banyak percobaan. Harap tunggu sebentar.',
+      errorGeneralAuth: 'Gagal melakukan autentikasi. Silakan coba lagi.',
+      errorEmailNotVerified: 'Email belum diverifikasi. Silakan cek kotak masuk Anda.',
 
       // Onboarding
       welcomeToFamFinance: 'Selamat Datang di FamFinance!',
@@ -347,6 +352,11 @@ const resources = {
       registrationSuccessful: 'Registration successful! Please check your email to verify your account.',
       creatingAccount: 'Creating Account...',
       signUp: 'Sign Up',
+      errorInvalidCredentials: 'Email address or password does not match.',
+      errorUserNotFound: 'User not found.',
+      errorTooManyRequests: 'Too many attempts. Please try again later.',
+      errorGeneralAuth: 'Authentication failed. Please try again.',
+      errorEmailNotVerified: 'Email not verified. Please check your inbox.',
 
       // Onboarding
       welcomeToFamFinance: 'Welcome to FamFinance!',
