@@ -50,8 +50,8 @@ export const useDebts = (enabled = true) => {
     }
   };
 
-  const totalPayable = debts.filter(d => d.type === 'payable' && d.status !== 'paid').reduce((acc, curr) => acc + (curr.amount - curr.paid_amount), 0);
-  const totalReceivable = debts.filter(d => d.type === 'receivable' && d.status !== 'paid').reduce((acc, curr) => acc + (curr.amount - curr.paid_amount), 0);
+  const totalPayable = debts.filter(d => d.type === 'payable' && d.status !== 'paid').reduce((acc, curr) => acc + (curr.remaining_amount || 0), 0);
+  const totalReceivable = debts.filter(d => d.type === 'receivable' && d.status !== 'paid').reduce((acc, curr) => acc + (curr.remaining_amount || 0), 0);
 
   return { debts, loading, error, fetchDebts, totalPayable, totalReceivable, updateDebt, deleteDebt };
 };

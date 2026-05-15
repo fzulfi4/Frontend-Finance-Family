@@ -74,8 +74,8 @@ const Debts = () => {
             {debts.map((debt) => {
               const isPayable = debt.type === 'payable';
               const isPaid = debt.status === 'paid';
-              const remaining = debt.amount - debt.paid_amount;
-              const progress = (debt.paid_amount / debt.amount) * 100;
+              const remaining = debt.remaining_amount || 0;
+              const progress = ((debt.amount - remaining) / debt.amount) * 100;
 
               return (
                 <div key={debt.id} className={`p-6 ${isPaid ? 'opacity-60' : ''}`}>

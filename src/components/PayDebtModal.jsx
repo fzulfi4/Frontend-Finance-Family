@@ -18,7 +18,7 @@ const PayDebtModal = ({ isOpen, onClose, onSuccess, debt }) => {
     if (isOpen) {
       fetchAccounts();
       if (debt) {
-        setAmount(debt.amount - debt.paid_amount);
+        setAmount(debt.remaining_amount || 0);
       }
       setError('');
     }
@@ -64,7 +64,7 @@ const PayDebtModal = ({ isOpen, onClose, onSuccess, debt }) => {
 
   if (!debt) return null;
 
-  const remaining = debt.amount - debt.paid_amount;
+  const remaining = debt.remaining_amount || 0;
   const formatCurrency = (val) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(val);
 
@@ -80,7 +80,7 @@ const PayDebtModal = ({ isOpen, onClose, onSuccess, debt }) => {
 
       <div className="bg-white/5 border border-white/10 p-4 rounded-xl mb-6">
         <p className="text-sm text-gray-400 mb-1">{t('payingToFrom')}</p>
-        <p className="font-bold text-lg mb-2">{debt.person_name}</p>
+        <p className="font-bold text-lg mb-2">{debt.name}</p>
         <p className="text-sm">
           {t('remainingBalance')}
           <span className="font-bold ml-2 text-white">{formatCurrency(remaining)}</span>
