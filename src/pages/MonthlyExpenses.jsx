@@ -7,11 +7,8 @@ import {
 import { useMonthlyExpenses } from '../hooks/useMonthlyExpenses';
 import Card from '../components/ui/Card';
 import MonthlyExpenseModal from '../components/MonthlyExpenseModal';
-import { useTranslation } from 'react-i18next';
-
 const MonthlyExpenses = () => {
   const { expenses, loading, createExpense, updateExpense, deleteExpense } = useMonthlyExpenses();
-  const { t } = useTranslation();
 
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,49 +74,50 @@ const MonthlyExpenses = () => {
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-5">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-1">Pengeluaran Bulanan</h1>
-          <p className="text-gray-400 text-sm">Kelola daftar pengeluaran rutin keluarga Anda.</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-3xl font-bold mb-0.5 truncate">Pengeluaran Bulanan</h1>
+          <p className="text-gray-400 text-sm">Kelola pengeluaran rutin keluarga.</p>
         </div>
         <button 
           onClick={() => { setSelectedExpense(null); setIsModalOpen(true); }}
-          className="btn btn-primary flex items-center gap-2 self-start md:self-center"
+          className="btn btn-primary flex items-center gap-2 flex-shrink-0"
         >
-          <Plus size={20} />
-          Tambah Pengeluaran
+          <Plus size={18} />
+          <span className="hidden sm:inline">Tambah</span>
+          <span className="sm:hidden">Tambah</span>
         </button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="flex items-center gap-4 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20">
-          <div className="p-3 rounded-xl bg-blue-500/15">
-            <ShieldCheck size={24} className="text-accent-blue" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card className="flex items-center gap-3 bg-gradient-to-br from-blue-500/10 to-transparent border-blue-500/20 p-4">
+          <div className="p-2.5 rounded-xl bg-blue-500/15 flex-shrink-0">
+            <ShieldCheck size={20} className="text-accent-blue" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-gray-400 mb-0.5">Total Pasti</p>
-            <p className="text-xl font-bold text-accent-blue">{formatCurrency(totals.fixed)}</p>
+            <p className="text-base font-bold text-accent-blue truncate">{formatCurrency(totals.fixed)}</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4 bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/20">
-          <div className="p-3 rounded-xl bg-orange-500/15">
-            <ShieldAlert size={24} className="text-orange-400" />
+        <Card className="flex items-center gap-3 bg-gradient-to-br from-orange-500/10 to-transparent border-orange-500/20 p-4">
+          <div className="p-2.5 rounded-xl bg-orange-500/15 flex-shrink-0">
+            <ShieldAlert size={20} className="text-orange-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-gray-400 mb-0.5">Total Opsional</p>
-            <p className="text-xl font-bold text-orange-400">{formatCurrency(totals.optional)}</p>
+            <p className="text-base font-bold text-orange-400 truncate">{formatCurrency(totals.optional)}</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4 bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20">
-          <div className="p-3 rounded-xl bg-purple-500/15">
-            <TrendingDown size={24} className="text-purple-400" />
+        <Card className="flex items-center gap-3 bg-gradient-to-br from-purple-500/10 to-transparent border-purple-500/20 p-4">
+          <div className="p-2.5 rounded-xl bg-purple-500/15 flex-shrink-0">
+            <TrendingDown size={20} className="text-purple-400" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-gray-400 mb-0.5">Grand Total</p>
-            <p className="text-xl font-bold text-purple-400">{formatCurrency(totals.total)}</p>
+            <p className="text-base font-bold text-purple-400 truncate">{formatCurrency(totals.total)}</p>
           </div>
         </Card>
       </div>

@@ -34,19 +34,20 @@ const Goals = () => {
   if (loading) return <div className="p-8 text-gray-400">{t('loadingGoals')}</div>;
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-1">{t('financialGoals')}</h1>
-          <p className="text-gray-400">{t('trackAndAchieve')}</p>
+    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-5">
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-3xl font-bold mb-0.5 truncate">{t('financialGoals')}</h1>
+          <p className="text-gray-400 text-sm">{t('trackAndAchieve')}</p>
         </div>
-        <button className="btn btn-primary w-full md:w-auto" onClick={() => setIsAddModalOpen(true)}>
-          <Plus size={18} /> {t('newGoal')}
+        <button className="btn btn-primary flex-shrink-0" onClick={() => setIsAddModalOpen(true)}>
+          <Plus size={18} />
+          <span className="hidden sm:inline">{t('newGoal')}</span>
         </button>
       </header>
 
       {/* Goal List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
         {goals.length === 0 ? (
           <Card className="col-span-full text-center py-16">
             <Target size={64} className="mx-auto text-gray-600 mb-6" />

@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import Card from '../components/ui/Card';
-import { useTranslation } from 'react-i18next';
-
 const ResetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -12,7 +10,6 @@ const ResetPassword = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const { updatePassword, setToken } = useContext(AuthContext);
   const navigate = useNavigate();
-  const { t } = useTranslation();
 
   useEffect(() => {
     // Supabase returns the token in the hash after clicking recovery link

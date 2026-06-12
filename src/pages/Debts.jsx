@@ -34,31 +34,32 @@ const Debts = () => {
   if (loading) return <div className="p-8 text-gray-400">{t('loadingDebts')}</div>;
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6">
-      <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-1">{t('debtsAndLoans')}</h1>
-          <p className="text-gray-400">{t('manageDebts')}</p>
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-5">
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-3xl font-bold mb-0.5 truncate">{t('debtsAndLoans')}</h1>
+          <p className="text-gray-400 text-sm">{t('manageDebts')}</p>
         </div>
-        <button className="btn btn-primary w-full md:w-auto" onClick={() => setIsAddModalOpen(true)}>
-          <Plus size={18} /> {t('recordDebt')}
+        <button className="btn btn-primary flex-shrink-0" onClick={() => setIsAddModalOpen(true)}>
+          <Plus size={18} />
+          <span className="hidden sm:inline">{t('recordDebt')}</span>
         </button>
       </header>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <Card className="border-l-4 border-l-accent-red">
-          <div className="flex items-center gap-2 text-gray-400 mb-2">
-            <ArrowDownRight size={18} /> {t('iOwePayables')}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="border-l-4 border-l-accent-red p-4">
+          <div className="flex items-center gap-1.5 text-gray-400 mb-2 text-xs">
+            <ArrowDownRight size={14} /> {t('iOwePayables')}
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-accent-red">{formatCurrency(totalPayable)}</h2>
+          <h2 className="text-xl md:text-3xl font-bold text-accent-red truncate">{formatCurrency(totalPayable)}</h2>
         </Card>
         
-        <Card className="border-l-4 border-l-accent-green">
-          <div className="flex items-center gap-2 text-gray-400 mb-2">
-            <ArrowUpRight size={18} /> {t('owedToMeReceivables')}
+        <Card className="border-l-4 border-l-accent-green p-4">
+          <div className="flex items-center gap-1.5 text-gray-400 mb-2 text-xs">
+            <ArrowUpRight size={14} /> {t('owedToMeReceivables')}
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-accent-green">{formatCurrency(totalReceivable)}</h2>
+          <h2 className="text-xl md:text-3xl font-bold text-accent-green truncate">{formatCurrency(totalReceivable)}</h2>
         </Card>
       </div>
 
@@ -78,34 +79,34 @@ const Debts = () => {
               const progress = ((debt.amount - remaining) / debt.amount) * 100;
 
               return (
-                <div key={debt.id} className={`p-6 ${isPaid ? 'opacity-60' : ''}`}>
-                  <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
-                    <div className="flex items-center gap-4">
-                      <div className={`p-3 rounded-xl ${isPaid ? 'bg-white/5 text-gray-500' : (isPayable ? 'bg-red-500/10 text-accent-red' : 'bg-green-500/10 text-accent-green')}`}>
-                        <WalletCards size={28} />
+                <div key={debt.id} className={`p-4 md:p-6 ${isPaid ? 'opacity-60' : ''}`}>
+                  <div className="flex justify-between items-start gap-3 mb-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`flex-shrink-0 p-2.5 rounded-xl ${isPaid ? 'bg-white/5 text-gray-500' : (isPayable ? 'bg-red-500/10 text-accent-red' : 'bg-green-500/10 text-accent-green')}`}>
+                        <WalletCards size={22} />
                       </div>
-                      <div>
-                        <h3 className="text-xl font-semibold flex items-center gap-2 group/title">
-                          {debt.name}
-                          {isPaid && <span className="text-[0.65rem] font-bold px-2 py-0.5 bg-white/10 rounded-full tracking-wider">{t('paid')}</span>}
+                      <div className="min-w-0">
+                        <h3 className="text-base font-semibold flex items-center gap-1.5 group/title">
+                          <span className="truncate">{debt.name}</span>
+                          {isPaid && <span className="text-[0.6rem] font-bold px-1.5 py-0.5 bg-white/10 rounded-full tracking-wider flex-shrink-0">{t('paid')}</span>}
                           <button 
                             onClick={() => handleEditClick(debt)}
-                            className="text-gray-500 hover:text-white transition-colors opacity-0 group-hover/title:opacity-100 p-1"
+                            className="flex-shrink-0 text-gray-500 hover:text-white transition-colors opacity-0 group-hover/title:opacity-100 p-0.5"
                             title={t('edit')}
                           >
-                            <Edit2 size={16} />
+                            <Edit2 size={14} />
                           </button>
                         </h3>
-                        <p className="text-sm text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 mt-0.5">
                           {isPayable ? t('youOweThem') : t('theyOweYou')} 
-                          {debt.due_date && ` • ${t('due')}: ${new Date(debt.due_date).toLocaleDateString()}`}
+                          {debt.due_date && ` • ${new Date(debt.due_date).toLocaleDateString()}`}
                         </p>
                       </div>
                     </div>
 
-                    <div className="text-left md:text-right bg-white/5 md:bg-transparent p-3 md:p-0 rounded-lg">
-                      <p className="font-bold text-xl">{formatCurrency(debt.amount)}</p>
-                      <p className="text-sm text-gray-400">
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-bold text-base">{formatCurrency(debt.amount)}</p>
+                      <p className="text-xs text-gray-400">
                         {t('remaining')}: <span className={isPaid ? '' : 'text-white font-medium'}>{formatCurrency(remaining)}</span>
                       </p>
                     </div>

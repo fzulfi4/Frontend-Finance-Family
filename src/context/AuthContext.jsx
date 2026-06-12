@@ -1,6 +1,7 @@
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -9,7 +10,14 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchUser = async () => {
+  const logout = useCallback(() => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user_id');
+    setToken(null);
+    setUser(null);
+  }, []);
+
+  const fetchUser = useCallback(async () => {
     const userId = localStorage.getItem('user_id');
     if (userId) {
       try {
@@ -17,9 +25,12 @@ export const AuthProvider = ({ children }) => {
         setUser(res.data.data);
       } catch (error) {
         console.error('Failed to fetch user', error);
+        if (error.response?.status === 401) {
+          logout();
+        }
       }
     }
-  };
+  }, [logout]);
 
   useEffect(() => {
     const init = async () => {
@@ -29,7 +40,7 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     };
     init();
-  }, [token]);
+  }, [token, fetchUser]);
 
   const login = async (email, password) => {
     setLoading(true);
@@ -91,12 +102,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user_id');
-    setToken(null);
-    setUser(null);
-  };
+
+
+  useEffect(() => {
+    const interceptor = api.interceptors.response.use(
+      (response) => response,
+      (err) => {
+        if (err.response?.status === 401) {
+          logout();
+        }
+        return Promise.reject(err);
+      }
+    );
+    return () => {
+      api.interceptors.response.eject(interceptor);
+    };
+  }, [logout]);
 
   const updateProfile = async (full_name) => {
     const userId = localStorage.getItem('user_id');

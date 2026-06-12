@@ -23,11 +23,6 @@ const FamilySettings = () => {
   const [isUpdatingUser, setIsUpdatingUser] = useState(false);
   const [updateUserError, setUpdateUserError] = useState(null);
 
-  // If user doesn't have a family, redirect to onboarding
-  if (!user?.family_id) {
-    return <Navigate to="/onboarding" />;
-  }
-
   useEffect(() => {
     if (family) {
       setEditName(family.name);
@@ -95,14 +90,19 @@ const FamilySettings = () => {
     }
   };
 
+  // If user doesn't have a family, redirect to onboarding
+  if (!user?.family_id) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   return (
-    <div className="p-6 md:p-10 space-y-8 animate-in fade-in duration-500 max-w-4xl mx-auto">
-      <header className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 flex items-center gap-3">
-          <Settings className="text-accent-blue" size={32} />
+    <div className="p-4 md:p-10 space-y-5 md:space-y-8 max-w-4xl mx-auto">
+      <header className="mb-4 md:mb-8">
+        <h1 className="text-xl md:text-4xl font-bold text-white mb-1 flex items-center gap-2 md:gap-3">
+          <Settings className="text-accent-blue flex-shrink-0" size={24} />
           {t('familySettings')}
         </h1>
-        <p className="text-gray-400 text-lg">{t('manageFamilyProfile')}</p>
+        <p className="text-gray-400 text-sm md:text-lg">{t('manageFamilyProfile')}</p>
       </header>
 
       {error && !updateError && (
@@ -120,7 +120,7 @@ const FamilySettings = () => {
 
       {family && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             
             {/* General Settings */}
             <div className="glass-panel md:col-span-2 flex flex-col space-y-6">

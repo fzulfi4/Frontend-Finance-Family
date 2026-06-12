@@ -14,16 +14,6 @@ const PayDebtModal = ({ isOpen, onClose, onSuccess, debt }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchAccounts();
-      if (debt) {
-        setAmount(debt.remaining_amount || 0);
-      }
-      setError('');
-    }
-  }, [isOpen, debt]);
-
   const fetchAccounts = async () => {
     try {
       const res = await api.get('/accounts');
@@ -36,6 +26,16 @@ const PayDebtModal = ({ isOpen, onClose, onSuccess, debt }) => {
       console.error('Failed to fetch accounts', err);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchAccounts();
+      if (debt) {
+        setAmount(debt.remaining_amount || 0);
+      }
+      setError('');
+    }
+  }, [isOpen, debt]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

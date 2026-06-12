@@ -62,15 +62,15 @@ const Onboarding = () => {
 
   return (
     <div className="min-h-screen bg-dark-bg flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-[-10%] right-[-10%] w-96 h-96 bg-accent-blue/20 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute top-[-10%] right-[-10%] w-72 md:w-96 h-72 md:h-96 bg-accent-blue/20 rounded-full blur-[100px] pointer-events-none"></div>
       
       <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-white mb-2">{t('welcomeToFamFinance')}</h1>
-          <p className="text-gray-400">{t('setUpWorkspace')}</p>
+        <div className="text-center mb-6 md:mb-10">
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{t('welcomeToFamFinance')}</h1>
+          <p className="text-gray-400 text-sm">{t('setUpWorkspace')}</p>
         </div>
 
-        <Card className="p-8">
+        <Card className="p-5 md:p-8">
           {error && (
             <div className="bg-red-500/10 text-accent-red px-4 py-3 rounded-lg mb-6 text-sm border border-red-500/20">
               {error}

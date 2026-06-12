@@ -9,14 +9,16 @@ export const useFamily = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const familyId = user?.family_id;
+
   const fetchFamily = useCallback(async () => {
-    if (!user?.family_id) return;
+    if (!familyId) return;
     
     setLoading(true);
     setError(null);
     try {
       // Get Family Details
-      const familyRes = await api.get(`/families/${user.family_id}`);
+      const familyRes = await api.get(`/families/${familyId}`);
       setFamily(familyRes.data.data);
 
       // Get Family Members
@@ -28,7 +30,7 @@ export const useFamily = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.family_id]);
+  }, [familyId]);
 
   useEffect(() => {
     fetchFamily();

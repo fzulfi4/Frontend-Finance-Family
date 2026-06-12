@@ -3,11 +3,8 @@ import { CalendarClock, Trash2, ShieldCheck, ShieldAlert } from 'lucide-react';
 import BaseModal from './ui/BaseModal';
 import CurrencyInput from './ui/CurrencyInput';
 import { useCategories } from '../hooks/useCategories';
-import { useTranslation } from 'react-i18next';
-
 const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateExpense, deleteExpense }) => {
   const { categories: allCategories } = useCategories(isOpen);
-  const { t } = useTranslation();
   
   const [formData, setFormData] = useState({
     category_id: '',

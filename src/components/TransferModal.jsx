@@ -26,6 +26,7 @@ const TransferModal = ({ isOpen, onClose, onSuccess, accounts }) => {
         setFormData(prev => ({ ...prev, account_id: accounts[0].id }));
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, accounts]);
 
   const handleSubmit = async (e) => {

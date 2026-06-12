@@ -14,15 +14,6 @@ const AddFundModal = ({ isOpen, onClose, onSuccess, goal }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchAccounts();
-      setRawAmount('');
-      setDisplayAmount('');
-      setError('');
-    }
-  }, [isOpen]);
-
   const fetchAccounts = async () => {
     try {
       const res = await api.get('/accounts');
@@ -35,6 +26,15 @@ const AddFundModal = ({ isOpen, onClose, onSuccess, goal }) => {
       console.error('Failed to fetch accounts', err);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchAccounts();
+      setRawAmount('');
+      setDisplayAmount('');
+      setError('');
+    }
+  }, [isOpen]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);

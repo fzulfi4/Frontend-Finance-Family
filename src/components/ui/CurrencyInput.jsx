@@ -22,11 +22,10 @@ const CurrencyInput = ({
   value,
   onChange,
   required,
-  min = 0,
-  max,
   placeholder = '0',
   className = '',
   disabled = false,
+  ...rest
 }) => {
   const [display, setDisplay] = useState(formatDisplay(value));
 
@@ -61,6 +60,7 @@ const CurrencyInput = ({
         onChange={handleChange}
         required={required}
         disabled={disabled}
+        {...rest}
       />
     </div>
   );

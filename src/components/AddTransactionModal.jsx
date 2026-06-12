@@ -32,6 +32,7 @@ const AddTransactionModal = ({ isOpen, onClose, onSuccess, accounts, type = 'exp
         setFormData(prev => ({ ...prev, account_id: accounts[0].id }));
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, accounts]);
 
   useEffect(() => {

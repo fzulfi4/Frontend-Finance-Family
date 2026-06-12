@@ -42,7 +42,7 @@ const Login = () => {
       } else {
         await register(formData.email, formData.password, formData.full_name);
       }
-    } catch (err) {
+    } catch {
       // Error is handled by AuthContext
     }
   };
@@ -64,16 +64,16 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-dark-bg flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background decorations */}
-      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-accent-blue/20 rounded-full blur-[100px] pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-accent-green/10 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute top-[-10%] left-[-10%] w-72 md:w-96 h-72 md:h-96 bg-accent-blue/20 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-72 md:w-96 h-72 md:h-96 bg-accent-green/10 rounded-full blur-[100px] pointer-events-none"></div>
 
       <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-accent-blue to-accent-green bg-clip-text text-transparent mb-2">FamFinance</h1>
-          <p className="text-gray-400">{t('financialCommandCenter')}</p>
+        <div className="text-center mb-6 md:mb-10">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-accent-blue to-accent-green bg-clip-text text-transparent mb-2">FamFinance</h1>
+          <p className="text-gray-400 text-sm">{t('financialCommandCenter')}</p>
         </div>
 
-        <Card className="p-8">
+        <Card className="p-5 md:p-8">
           <h2 className="text-2xl font-bold mb-1 text-white">
             {isForgotPassword ? 'Reset Password' : (isLogin ? t('welcomeBackTitle') : t('createAnAccount'))}
           </h2>

@@ -26,18 +26,18 @@ const startOf = (date, unit) => {
 const PRESETS = [
   { key: 'all',   label: 'Semua' },
   { key: 'today', label: 'Hari Ini' },
-  { key: 'week',  label: 'Minggu Ini' },
-  { key: 'month', label: 'Bulan Ini' },
-  { key: 'year',  label: 'Tahun Ini' },
+  { key: 'week',  label: 'Minggu' },
+  { key: 'month', label: 'Bulan' },
+  { key: 'year',  label: 'Tahun' },
   { key: 'range', label: 'Periode' },
 ];
 
-// ─── FilterSelect ────────────────────────────────────────────────────────────
-const FilterSelect = ({ icon: Icon, label, value, onChange, options, allLabel }) => (
-  <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 min-w-[180px]">
+// eslint-disable-next-line no-unused-vars
+const FilterSelect = ({ icon: Icon, value, onChange, options, allLabel }) => (
+  <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex-1 min-w-0">
     <Icon size={15} className="text-gray-400 flex-shrink-0" />
     <select
-      className="bg-transparent text-sm text-gray-200 flex-1 outline-none appearance-none cursor-pointer"
+      className="bg-transparent text-sm text-gray-200 flex-1 outline-none appearance-none cursor-pointer min-w-0 truncate"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
@@ -79,7 +79,6 @@ const Transactions = () => {
     return transactions.filter(tx => {
       const d = new Date(tx.transaction_date);
 
-      // Period filter
       if (activePreset === 'today' && d < startOf(now, 'day'))  return false;
       if (activePreset === 'week'  && d < startOf(now, 'week')) return false;
       if (activePreset === 'month' && d < startOf(now, 'month'))return false;
@@ -92,10 +91,7 @@ const Transactions = () => {
         }
       }
 
-      // Member filter
       if (filterMember && tx.user_id !== filterMember) return false;
-
-      // Wallet filter
       if (filterWallet && tx.account_id !== filterWallet) return false;
 
       return true;
@@ -155,31 +151,31 @@ const Transactions = () => {
   if (loading) return <div className="p-8 text-gray-400">{t('loadingTransactions')}</div>;
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-5">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-4 md:space-y-5">
       {/* Header */}
       <header>
         <h1 className="text-2xl md:text-3xl font-bold mb-1">{t('transactionHistory')}</h1>
         <p className="text-gray-400 text-sm">{t('allIncomesExpenses')}</p>
       </header>
 
-      {/* ── Period filter bar ── */}
-      <div className="flex flex-wrap gap-2">
+      {/* ── Period filter bar — horizontally scrollable on mobile ── */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
         {PRESETS.map(p => (
           <button
             key={p.key}
             onClick={() => handlePreset(p.key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-all flex-shrink-0 ${
               activePreset === p.key
                 ? 'bg-accent-blue border-accent-blue text-white shadow-lg shadow-blue-500/20'
                 : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
             }`}
           >
-            {p.key === 'range' && <CalendarDays size={14} />}
+            {p.key === 'range' && <CalendarDays size={13} />}
             {activePreset === 'range' && p.key === 'range' ? rangeLabel() : p.label}
             {activePreset === 'range' && p.key === 'range' && (rangeStart || rangeEnd) && (
               <X
-                size={12}
-                className="ml-1 hover:text-red-400"
+                size={11}
+                className="ml-0.5 hover:text-red-400"
                 onClick={(e) => { e.stopPropagation(); setRangeStart(null); setRangeEnd(null); }}
               />
             )}
@@ -189,7 +185,7 @@ const Transactions = () => {
 
       {/* ── Date range picker ── */}
       {showRangePicker && activePreset === 'range' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-white/5 border border-white/10 rounded-2xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-white/5 border border-white/10 rounded-2xl">
           <div>
             <label className="input-label">Dari Tanggal</label>
             <DatePicker
@@ -222,8 +218,8 @@ const Transactions = () => {
         </div>
       )}
 
-      {/* ── Entity filters (member + wallet) ── */}
-      <div className="flex flex-wrap gap-3 items-center">
+      {/* ── Entity filters — full width row on mobile ── */}
+      <div className="flex gap-2 items-center">
         <FilterSelect
           icon={User2}
           allLabel="Semua Anggota"
@@ -241,31 +237,31 @@ const Transactions = () => {
         {hasActiveFilter && (
           <button
             onClick={() => { setFilterMember(''); setFilterWallet(''); }}
-            className="text-xs text-gray-500 hover:text-white flex items-center gap-1 transition-colors"
+            className="text-xs text-gray-500 hover:text-white flex items-center gap-1 transition-colors flex-shrink-0 p-2 rounded-lg hover:bg-white/5"
           >
-            <X size={12} /> Reset filter
+            <X size={14} />
           </button>
         )}
       </div>
 
       {/* ── Summary cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="flex items-center gap-4 bg-gradient-to-br from-green-500/10 to-transparent border-green-500/20">
-          <div className="p-3 rounded-xl bg-green-500/15">
-            <TrendingUp size={22} className="text-accent-green" />
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="flex items-center gap-3 bg-gradient-to-br from-green-500/10 to-transparent border-green-500/20 p-4">
+          <div className="p-2 rounded-xl bg-green-500/15 flex-shrink-0">
+            <TrendingUp size={18} className="text-accent-green" />
           </div>
-          <div>
-            <p className="text-xs text-gray-400 mb-0.5">Total Pemasukan</p>
-            <p className="text-xl font-bold text-accent-green">+{formatCurrency(totalIncome)}</p>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400 mb-0.5">Pemasukan</p>
+            <p className="text-base font-bold text-accent-green truncate">+{formatCurrency(totalIncome)}</p>
           </div>
         </Card>
-        <Card className="flex items-center gap-4 bg-gradient-to-br from-red-500/10 to-transparent border-red-500/20">
-          <div className="p-3 rounded-xl bg-red-500/15">
-            <TrendingDown size={22} className="text-accent-red" />
+        <Card className="flex items-center gap-3 bg-gradient-to-br from-red-500/10 to-transparent border-red-500/20 p-4">
+          <div className="p-2 rounded-xl bg-red-500/15 flex-shrink-0">
+            <TrendingDown size={18} className="text-accent-red" />
           </div>
-          <div>
-            <p className="text-xs text-gray-400 mb-0.5">Total Pengeluaran</p>
-            <p className="text-xl font-bold text-accent-red">-{formatCurrency(totalExpense)}</p>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400 mb-0.5">Pengeluaran</p>
+            <p className="text-base font-bold text-accent-red truncate">-{formatCurrency(totalExpense)}</p>
           </div>
         </Card>
       </div>
@@ -273,24 +269,24 @@ const Transactions = () => {
       {/* ── Transaction list grouped by month ── */}
       {filtered.length === 0 ? (
         <Card>
-          <div className="p-12 text-center text-gray-500">
-            <ReceiptText size={48} className="mx-auto mb-4 opacity-30" />
+          <div className="p-10 text-center text-gray-500">
+            <ReceiptText size={40} className="mx-auto mb-4 opacity-30" />
             <p>{t('noTransactionsFound')}</p>
           </div>
         </Card>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {grouped.map(([key, group]) => (
             <div key={key}>
               {/* Month header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-base font-semibold text-white capitalize">{group.label}</h2>
+              <div className="flex items-center justify-between mb-2 px-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-semibold text-white capitalize">{group.label}</h2>
                   <span className="text-xs text-gray-500 bg-white/5 px-2 py-0.5 rounded-full">
-                    {group.items.length} transaksi
+                    {group.items.length}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-sm">
+                <div className="flex items-center gap-2 text-xs">
                   {group.income > 0 && (
                     <span className="text-accent-green font-medium">+{formatCurrency(group.income)}</span>
                   )}
@@ -311,52 +307,48 @@ const Transactions = () => {
                     return (
                       <div
                         key={tx.id}
-                        className="flex justify-between items-center p-4 hover:bg-white/5 transition-colors group"
+                        className="flex justify-between items-center p-3 md:p-4 hover:bg-white/5 transition-colors group"
                       >
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
                           {/* Type icon */}
-                          <div className={`flex-shrink-0 p-3 rounded-full ${tx.type === 'transfer' ? 'bg-blue-500/10 text-accent-blue' : isIncome ? 'bg-green-500/10 text-accent-green' : 'bg-red-500/10 text-accent-red'}`}>
-                            {tx.type === 'transfer' ? <ArrowRightLeft size={20} /> : isIncome ? <ArrowUpRight size={20} /> : <ArrowDownRight size={20} />}
+                          <div className={`flex-shrink-0 p-2.5 rounded-full ${tx.type === 'transfer' ? 'bg-blue-500/10 text-accent-blue' : isIncome ? 'bg-green-500/10 text-accent-green' : 'bg-red-500/10 text-accent-red'}`}>
+                            {tx.type === 'transfer' ? <ArrowRightLeft size={16} /> : isIncome ? <ArrowUpRight size={16} /> : <ArrowDownRight size={16} />}
                           </div>
 
                           <div className="min-w-0 flex-1">
                             {/* Title + edit */}
-                            <p className="font-semibold truncate flex items-center gap-2 group/title">
+                            <p className="font-semibold text-sm truncate flex items-center gap-1.5 group/title">
                               {tx.notes || (tx.type === 'transfer' ? t('transfer') : isIncome ? t('income') : t('expense'))}
                               <button
                                 onClick={() => { setSelectedTx(tx); setIsEditOpen(true); }}
-                                className="flex-shrink-0 text-gray-500 hover:text-white transition-colors opacity-0 group-hover/title:opacity-100 p-1"
+                                className="flex-shrink-0 text-gray-500 hover:text-white transition-colors opacity-0 group-hover/title:opacity-100 p-0.5"
                                 title={t('edit')}
                               >
-                                <Edit2 size={14} />
+                                <Edit2 size={12} />
                               </button>
                             </p>
 
                             {/* Meta row */}
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                              {/* Date */}
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
                               <span className="text-xs text-gray-400">
                                 {tx.transaction_date
-                                  ? new Date(tx.transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                                  ? new Date(tx.transaction_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
                                   : t('unknownDate')}
                               </span>
 
-                              {/* Wallet */}
                               {tx.account?.name && (
-                                <span className="text-xs text-gray-400 flex items-center gap-1">
-                                  <Wallet2 size={11} />
+                                <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                                  <Wallet2 size={10} />
                                   <span className="text-gray-300">{tx.account.name}</span>
                                 </span>
                               )}
 
-                              {/* Category */}
                               {tx.category?.name && (
                                 <span className="text-xs text-gray-400">• {tx.category.name}</span>
                               )}
 
-                              {/* Author */}
-                              <span className={`text-xs flex items-center gap-1 ${isMine ? 'text-accent-blue' : 'text-gray-400'}`}>
-                                <User2 size={11} />
+                              <span className={`text-xs flex items-center gap-0.5 ${isMine ? 'text-accent-blue' : 'text-gray-400'}`}>
+                                <User2 size={10} />
                                 {isMine ? 'Saya' : authorName}
                               </span>
                             </div>
@@ -364,7 +356,7 @@ const Transactions = () => {
                         </div>
 
                         {/* Amount */}
-                        <div className={`flex-shrink-0 font-bold text-base ml-4 ${tx.type === 'transfer' ? 'text-accent-blue' : isIncome ? 'text-accent-green' : 'text-white'}`}>
+                        <div className={`flex-shrink-0 font-bold text-sm ml-2 text-right ${tx.type === 'transfer' ? 'text-accent-blue' : isIncome ? 'text-accent-green' : 'text-white'}`}>
                           {tx.type === 'transfer' ? '' : isIncome ? '+' : '-'}{formatCurrency(tx.amount)}
                         </div>
                       </div>

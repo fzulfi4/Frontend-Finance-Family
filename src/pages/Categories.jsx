@@ -39,20 +39,21 @@ const Categories = () => {
   };
 
   return (
-    <div className="p-6 md:p-10 space-y-8 animate-in fade-in duration-500 max-w-5xl mx-auto">
-      <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 flex items-center gap-3">
-            <Tags className="text-accent-blue" size={32} />
+    <div className="p-4 md:p-10 space-y-6 md:space-y-8 max-w-5xl mx-auto">
+      <header className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-4xl font-bold text-white mb-0.5 flex items-center gap-2 truncate">
+            <Tags className="text-accent-blue flex-shrink-0" size={22} />
             {t('categories')}
           </h1>
-          <p className="text-gray-400 text-lg">{t('manageCategories')}</p>
+          <p className="text-gray-400 text-sm md:text-lg">{t('manageCategories')}</p>
         </div>
         <button 
           onClick={() => handleOpenModal()} 
-          className="btn btn-primary whitespace-nowrap self-start md:self-auto"
+          className="btn btn-primary flex-shrink-0"
         >
-          <Plus size={18} /> {t('newCategory')}
+          <Plus size={18} />
+          <span className="hidden sm:inline">{t('newCategory')}</span>
         </button>
       </header>
 
