@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const api = axios.create({
   // Jika VITE_API_URL tidak ada, dia akan menggunakan '/api/v1' secara relatif
-  baseURL: import.meta.env.VITE_API_URL || '/api/v1',
+  baseURL: '/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
