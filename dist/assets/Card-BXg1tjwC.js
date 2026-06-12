@@ -1,0 +1,1 @@
+import{G as e}from"./vendor-react-UbTc4uYh.js";var t=e(),n=({children:e,className:n=``,style:r={}})=>(0,t.jsx)(`div`,{className:`glass-panel ${n}`,style:r,children:e});export{n as t};
