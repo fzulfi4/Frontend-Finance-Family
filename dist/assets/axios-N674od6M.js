@@ -1,1 +1,0 @@
-import{vt as e}from"./vendor-DUQ2mICt.js";var t=e.create({baseURL:`http://localhost:8083/api/v1`,headers:{"Content-Type":`application/json`}});t.interceptors.request.use(e=>{let t=localStorage.getItem(`access_token`);return t&&(e.headers.Authorization=`Bearer ${t}`),e},e=>Promise.reject(e));export{t};
