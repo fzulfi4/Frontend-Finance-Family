@@ -1,12 +1,7 @@
-const Card = ({ children, className = '', style = {} }) => {
-  return (
-    <div 
-      className={`glass-panel ${className}`}
-      style={style}
-    >
-      {children}
-    </div>
-  );
-};
+const Card = ({ children, className = '' }) => (
+  <div className={`card ${className}`}>
+    {children}
+  </div>
+);
 
 export default Card;

@@ -71,6 +71,23 @@ export const useFamily = () => {
     }
   };
 
+  const leaveFamily = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.post('/users/leave-family');
+      setUser({ ...user, family_id: null, role: 'member' });
+      return true;
+    } catch (err) {
+      console.error('Failed to leave family:', err);
+      const errorMsg = err.response?.data?.error || 'Failed to leave family';
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     family,
     members,
@@ -78,6 +95,7 @@ export const useFamily = () => {
     error,
     fetchFamily,
     updateFamily,
-    deleteFamily
+    deleteFamily,
+    leaveFamily
   };
 };

@@ -1,197 +1,558 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import 'react-datepicker/dist/react-datepicker.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Base ────────────────────────────────────────────────────────────────── */
 @layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-dark-bg text-gray-100 font-sans antialiased min-h-screen overflow-x-hidden;
+    @apply bg-dark-bg text-gray-100 antialiased min-h-screen overflow-x-hidden;
+    font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    background-image:
+      radial-gradient(ellipse 60% 40% at 10% -10%, rgba(59,130,246,0.12) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 50% at 90% 20%, rgba(139,92,246,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 50% at 30% 100%, rgba(16,185,129,0.06) 0%, transparent 70%);
+    background-attachment: fixed;
   }
 }
 
+/* ─── Components ─────────────────────────────────────────────────────────── */
 @layer components {
+
+  /* Modern Glass Panels & Cards */
   .glass-panel {
-    @apply bg-dark-panel backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-xl;
-  }
-  
-  .glass-header {
-    @apply sticky top-0 z-50 bg-dark-bg/80 backdrop-blur-md border-b border-white/5 px-4 md:px-6 py-4 flex justify-between items-center;
+    background: rgba(15, 18, 36, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.5);
+    padding: 1.5rem;
+    border-radius: 1.25rem;
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
   }
 
+  .glass-panel-sm {
+    background: rgba(15, 18, 36, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.4);
+    padding: 1rem;
+    border-radius: 1rem;
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+  }
+
+  .card {
+    background: rgba(15, 18, 36, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45);
+    border-radius: 1.25rem;
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover {
+    background: rgba(15, 18, 36, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45);
+    border-radius: 1.25rem;
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-hover:hover {
+    box-shadow: 0 20px 40px -15px rgba(59, 130, 246, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.12);
+    border-color: rgba(59, 130, 246, 0.25);
+    transform: translateY(-3px) scale(1.005);
+  }
+
+  /* Tactile Modern Buttons */
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.675rem 1.25rem;
+    border-radius: 1rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .btn:active:not(:disabled) {
+    transform: scale(0.96);
   }
 
   .btn-primary {
-    @apply bg-accent-blue hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(41,121,255,0.3)] hover:shadow-[0_0_20px_rgba(41,121,255,0.5)];
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: white;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #4f46e5 0%, #a78bfa 100%);
+    box-shadow: 0 6px 28px rgba(139, 92, 246, 0.45);
+    transform: translateY(-1px);
   }
 
   .btn-secondary {
-    @apply bg-transparent border border-white/10 hover:bg-white/5 text-gray-300;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #e5e7eb;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
   }
 
+  .btn-secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.16);
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  .btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #f87171;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: rgba(239, 68, 68, 0.45);
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: #9ca3af;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+  }
+
+  .btn-sm {
+    padding: 0.45rem 0.875rem;
+    font-size: 0.75rem;
+    border-radius: 0.75rem;
+  }
+
+  .btn-lg {
+    padding: 0.875rem 1.75rem;
+    font-size: 1rem;
+    border-radius: 1.25rem;
+  }
+
+  .btn-icon {
+    padding: 0.625rem;
+    border-radius: 0.875rem;
+  }
+
+  /* Sleek Minimalist Inputs */
   .input-field {
-    @apply w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue transition-all;
-    font-size: 16px; /* prevents iOS zoom on focus */
+    width: 100%;
+    background: rgba(8, 8, 16, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    padding: 0.75rem 1.125rem;
+    color: white;
+    font-size: 16px; /* Prevents iOS auto-zoom */
+    transition: all 0.2s ease-in-out;
+    outline: none;
   }
-  
+
+  .input-field::placeholder {
+    color: rgba(156, 163, 175, 0.4);
+  }
+
+  .input-field:focus {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(8, 8, 16, 0.85);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15), 0 0 15px rgba(139, 92, 246, 0.1);
+  }
+
   .input-label {
-    @apply block text-sm font-medium text-gray-400 mb-2;
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #9ca3af;
+    margin-bottom: 0.45rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
 
+  /* Page Header */
+  .page-header {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .page-header {
+      flex-direction: row;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+  }
+
+  .page-title {
+    font-size: 1.625rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  @media (min-width: 768px) {
+    .page-title { font-size: 2.125rem; }
+  }
+
+  .page-subtitle {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin-top: 0.25rem;
+  }
+
+  /* Stat Card */
+  .stat-card {
+    background: rgba(15, 18, 36, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45);
+    border-radius: 1.25rem;
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: 1.125rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  @media (min-width: 768px) {
+    .stat-card { padding: 1.375rem; }
+  }
+
+  .stat-icon {
+    flex-shrink: 0;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Glass Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.725rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+
+  .badge-blue {
+    background: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.25);
+  }
+
+  .badge-green {
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+  }
+
+  .badge-red {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+  }
+
+  .badge-violet {
+    background: rgba(139, 92, 246, 0.12);
+    color: #c084fc;
+    border: 1px solid rgba(139, 92, 246, 0.25);
+  }
+
+  .badge-amber {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+  }
+
+  /* Section Header */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.125rem;
+  }
+
+  .section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #e5e7eb;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    letter-spacing: -0.01em;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-white/5;
+  }
+
+  /* Filter Chip */
+  .filter-chip {
+    @apply inline-flex items-center gap-1.5 px-3.5 py-[7px] rounded-full text-xs font-bold
+           border transition-all duration-200 flex-shrink-0 cursor-pointer select-none;
+  }
+
+  .filter-chip-active {
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    @apply bg-accent-blue border-accent-blue/80 text-white;
+  }
+
+  .filter-chip-inactive {
+    @apply bg-white/5 border-[rgba(255,255,255,0.08)] text-gray-400 hover:bg-white/10 hover:text-white hover:border-[rgba(255,255,255,0.16)];
+  }
+
+  /* Progress Bars */
+  .progress-track {
+    @apply w-full h-2.5 bg-black/45 rounded-full overflow-hidden border border-white/5;
+  }
+
+  .progress-fill {
+    @apply h-full rounded-full transition-all duration-700 ease-out;
+  }
+
+  /* Avatar */
+  .avatar {
+    @apply flex-shrink-0 rounded-full flex items-center justify-center font-bold text-sm;
+  }
 }
 
-/* ─── Safe Area (iOS notch / home indicator) ─────────────────────────── */
+/* ─── Utilities ──────────────────────────────────────────────────────────── */
 @layer utilities {
-  .pb-safe {
-    padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
-  }
-  .pt-safe {
-    padding-top: env(safe-area-inset-top);
-  }
-  .mb-safe {
-    margin-bottom: max(env(safe-area-inset-bottom), 0.5rem);
-  }
+
+  /* Safe area (iOS Notch) */
+  .pb-safe  { padding-bottom: max(env(safe-area-inset-bottom), 0.75rem); }
+  .pt-safe  { padding-top: env(safe-area-inset-top); }
+  .mb-safe  { margin-bottom: max(env(safe-area-inset-bottom), 0.75rem); }
+
+  /* Scrollbar removal */
   .scrollbar-none {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
-  .scrollbar-none::-webkit-scrollbar {
-    display: none;  /* Chrome, Safari and Opera */
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+
+  /* Text Gradients */
+  .text-gradient-blue {
+    background-image: linear-gradient(135deg, #60a5fa 0%, #06b6d4 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .text-gradient-green {
+    background-image: linear-gradient(135deg, #34d399 0%, #059669 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .text-gradient-brand {
+    background-image: linear-gradient(135deg, #60a5fa 0%, #a78bfa 50%, #34d399 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Glow Effects */
+  .glow-blue   { box-shadow: 0 0 24px rgba(59, 130, 246, 0.45); }
+  .glow-green  { box-shadow: 0 0 24px rgba(16, 185, 129, 0.45); }
+  .glow-violet { box-shadow: 0 0 24px rgba(139, 92, 246, 0.45); }
+  .glow-red    { box-shadow: 0 0 24px rgba(239, 68, 68, 0.45); }
+
+  /* Loading skeleton shimmer animation */
+  .shimmer-bg {
+    background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%);
+    background-size: 200% 100%;
+    animation: shimmer 2.2s infinite;
+  }
+
+  /* Frosted Overlay */
+  .frosted {
+    background-color: rgba(10, 12, 22, 0.75);
+    -webkit-backdrop-filter: blur(40px);
+    backdrop-filter: blur(40px);
+  }
+
+  /* Noise Overlay */
+  .noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none;
   }
 }
 
-/* ─── Native Select / Dropdown Styling ─────────────────────────────── */
+/* ─── Custom Form Select Dropdowns ────────────────────────────────────────── */
 select.input-field {
   appearance: none;
   -webkit-appearance: none;
-  -moz-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 12px center;
+  background-position: right 14px center;
   background-size: 16px;
-  padding-right: 36px;
+  padding-right: 42px;
   cursor: pointer;
 }
 
-select.input-field::-ms-expand {
-  display: none;
-}
+select.input-field::-ms-expand { display: none; }
 
-select option,
-select optgroup {
-  background-color: #1a1a22;
+select option, select optgroup {
+  background-color: #0c0d16;
   color: #e5e7eb;
-  padding: 10px 14px;
+  padding: 12px 16px;
   font-size: 14px;
 }
 
-select option:checked {
-  background-color: #2563eb;
-  color: white;
-}
+select option:checked  { background-color: #4f46e5; color: white; }
+select option:disabled { color: #4b5563; }
 
-select option:hover {
-  background-color: #2a2a35;
-}
-
-select option:disabled {
-  color: #6b7280;
-}
-
-/* Fix for Firefox dropdown */
 @-moz-document url-prefix() {
-  select option {
-    background-color: #1a1a22;
-    color: #e5e7eb;
-  }
+  select option { background-color: #0c0d16; color: #e5e7eb; }
 }
 
-/* Custom Scrollbar — hidden on mobile, visible on desktop */
+/* ─── Custom Scrollbar (Desktop only) ──────────────────────────────────── */
 @media (min-width: 768px) {
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #0a0a0c;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #2a2a35;
-    border-radius: 4px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #3a3a45;
-  }
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
 }
 
-/* DatePicker Overrides */
+/* ─── DatePicker Overrides ──────────────────────────────────────────────── */
 .react-datepicker-wrapper,
 .react-datepicker__input-container {
   display: block !important;
   width: 100% !important;
 }
 
-.react-datepicker-wrapper input {
-  width: 100% !important;
+.react-datepicker-wrapper input { width: 100% !important; }
+.react-datepicker-popper        { z-index: 9999 !important; }
+
+.react-datepicker {
+  background-color: #0d0f1c !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  color: white !important;
+  font-family: 'Outfit', 'Inter', inherit !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.65) !important;
+  border-radius: 20px !important;
+  overflow: hidden !important;
 }
 
-.react-datepicker-popper {
-  z-index: 60 !important;
-}
-.react-datepicker {
-  background-color: #1e1e24 !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  color: white !important;
-  font-family: inherit !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-}
 .react-datepicker__header {
-  background-color: #1e1e24 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-  padding-top: 1rem !important;
+  background-color: #0d0f1c !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  padding-top: 1.125rem !important;
+  border-radius: 20px 20px 0 0 !important;
 }
-.react-datepicker__current-month, 
-.react-datepicker-time__header, 
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
 .react-datepicker-year-header {
   color: white !important;
-  font-weight: 500 !important;
-  font-size: 1.125rem !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  letter-spacing: -0.01em !important;
 }
-.react-datepicker__day-name {
-  color: #9ca3af !important; 
-  font-weight: 500 !important;
-}
-.react-datepicker__day, 
-.react-datepicker__time-name {
-  color: white !important; 
-}
-.react-datepicker__day:hover, 
-.react-datepicker__month-text:hover, 
-.react-datepicker__quarter-text:hover, 
+
+.react-datepicker__day-name { color: #6b7280 !important; font-weight: 600 !important; }
+.react-datepicker__day, .react-datepicker__time-name { color: #e5e7eb !important; font-weight: 500 !important; }
+
+.react-datepicker__day:hover,
+.react-datepicker__month-text:hover,
+.react-datepicker__quarter-text:hover,
 .react-datepicker__year-text:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-radius: 0.5rem !important;
+  background-color: rgba(139, 92, 246, 0.16) !important;
+  border-radius: 10px !important;
   color: white !important;
 }
 
-.react-datepicker__day--selected, 
-.react-datepicker__day--in-selecting-range, 
+.react-datepicker__day--selected,
+.react-datepicker__day--in-selecting-range,
 .react-datepicker__day--in-range {
-  background-color: white !important;
-  color: black !important;
-  border-radius: 0.5rem !important;
-  font-weight: bold !important;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+  color: white !important;
+  border-radius: 10px !important;
+  font-weight: 700 !important;
 }
+
 .react-datepicker__day--keyboard-selected {
-  background-color: rgba(255,255,255,0.7) !important;
-  color: black !important;
-  border-radius: 0.5rem !important;
+  background-color: rgba(139, 92, 246, 0.35) !important;
+  color: white !important;
+  border-radius: 10px !important;
 }
+
 .react-datepicker__day--disabled {
-  color: #4b5563 !important; 
+  color: #374151 !important;
   cursor: not-allowed !important;
   background-color: transparent !important;
 }
-.react-datepicker__triangle {
-  display: none !important;
+
+.react-datepicker__triangle { display: none !important; }
+
+.react-datepicker__navigation-icon::before {
+  border-color: #9ca3af !important;
+  border-width: 2px 2px 0 0 !important;
+}
+
+/* ─── Page animation ────────────────────────────────────────────────────── */
+.page-enter { animation: fadeIn 0.28s ease-out; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }

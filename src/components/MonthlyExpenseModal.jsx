@@ -1,13 +1,20 @@
 import { useState, useEffect } from 'react';
-import { CalendarClock, Trash2, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { CalendarClock, Trash2, Wallet } from 'lucide-react';
 import BaseModal from './ui/BaseModal';
 import CurrencyInput from './ui/CurrencyInput';
 import { useCategories } from '../hooks/useCategories';
+import { useWallets } from '../hooks/useWallets';
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
+
 const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateExpense, deleteExpense }) => {
+  const { user } = useContext(AuthContext);
   const { categories: allCategories } = useCategories(isOpen);
-  
+  const { wallets } = useWallets(!!user?.family_id);
+
   const [formData, setFormData] = useState({
     category_id: '',
+    account_id: '',
     name: '',
     amount: '',
     priority: 'fixed',
@@ -25,6 +32,7 @@ const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateEx
     if (expense && isOpen) {
       setFormData({
         category_id: expense.category_id || '',
+        account_id: expense.account_id || '',
         name: expense.name || '',
         amount: expense.amount,
         priority: expense.priority || 'fixed',
@@ -35,6 +43,7 @@ const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateEx
     } else if (!expense && isOpen) {
       setFormData({
         category_id: '',
+        account_id: '',
         name: '',
         amount: '',
         priority: 'fixed',
@@ -54,6 +63,7 @@ const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateEx
         ...formData,
         amount: parseFloat(formData.amount),
         category_id: formData.category_id || undefined,
+        account_id: formData.account_id || undefined,
       };
 
       if (expense) {
@@ -101,11 +111,11 @@ const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateEx
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="input-label">Nama Pengeluaran</label>
-          <input 
-            type="text" 
+          <input
+            type="text"
             name="name"
-            className="input-field" 
-            placeholder="Misal: Listrik, Netflix, Kos" 
+            className="input-field"
+            placeholder="Misal: Listrik, Netflix, Kos"
             value={formData.name}
             onChange={handleChange}
             required
@@ -125,7 +135,7 @@ const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateEx
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="input-label">Tipe Prioritas</label>
-            <select 
+            <select
               name="priority"
               className="input-field"
               value={formData.priority}
@@ -138,7 +148,7 @@ const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateEx
           </div>
           <div>
             <label className="input-label">Kategori</label>
-            <select 
+            <select
               name="category_id"
               className="input-field"
               value={formData.category_id}
@@ -152,9 +162,32 @@ const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateEx
           </div>
         </div>
 
+        {/* Wallet association */}
+        <div>
+          <label className="input-label flex items-center gap-1.5">
+            <Wallet size={12} className="text-accent-blue" />
+            Dompet Terkait
+            <span className="text-[10px] text-gray-500 font-normal ml-1">(opsional — kosong = semua dompet)</span>
+          </label>
+          <select
+            name="account_id"
+            className="input-field"
+            value={formData.account_id}
+            onChange={handleChange}
+          >
+            <option value="">🌐 Semua Dompet (Global)</option>
+            {wallets.map(w => (
+              <option key={w.id} value={w.id}>💳 {w.name}</option>
+            ))}
+          </select>
+          <p className="text-[10px] text-gray-500 mt-1.5 leading-relaxed">
+            Jika dipilih, limit ini hanya akan menghitung transaksi dari dompet yang terpilih.
+          </p>
+        </div>
+
         <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-          <input 
-            type="checkbox" 
+          <input
+            type="checkbox"
             name="is_active"
             id="is_active"
             checked={formData.is_active}
@@ -169,8 +202,8 @@ const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateEx
         {!showConfirmDelete ? (
           <div className="flex gap-4 pt-4 items-center">
             {expense && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="p-3 rounded-lg border border-red-500/30 text-accent-red hover:bg-red-500/10 transition-colors"
                 onClick={() => setShowConfirmDelete(true)}
               >
@@ -188,16 +221,16 @@ const MonthlyExpenseModal = ({ isOpen, onClose, expense, createExpense, updateEx
           <div className="pt-4 p-4 border border-red-500/30 rounded-xl bg-red-500/5 mt-4">
             <p className="text-sm text-gray-300 mb-4 text-center">Hapus pengeluaran bulanan ini?</p>
             <div className="flex gap-3">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn border border-red-500 text-white bg-accent-red hover:bg-red-600 flex-1"
                 onClick={handleDelete}
                 disabled={deleteLoading || loading}
               >
                 {deleteLoading ? 'Menghapus...' : 'Ya, Hapus'}
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="btn btn-secondary flex-1"
                 onClick={() => setShowConfirmDelete(false)}
                 disabled={deleteLoading}

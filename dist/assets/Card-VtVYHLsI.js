@@ -1,0 +1,1 @@
+import{dt as e}from"./vendor-react-DGjiwTSX.js";var t=e(),n=({children:e,className:n=``})=>(0,t.jsx)(`div`,{className:`card ${n}`,children:e});export{n as t};

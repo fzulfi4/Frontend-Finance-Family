@@ -14,6 +14,7 @@ const Categories      = lazy(() => import('./pages/Categories'));
 const MonthlyExpenses = lazy(() => import('./pages/MonthlyExpenses'));
 const FamilySettings  = lazy(() => import('./pages/FamilySettings'));
 const ResetPassword   = lazy(() => import('./pages/ResetPassword'));
+const Reports         = lazy(() => import('./pages/Reports'));
 const Layout          = lazy(() => import('./components/Layout'));
 
 const PageLoader = () => (
@@ -80,6 +81,7 @@ function App() {
             <Route path="/goals"            element={<Goals />} />
             <Route path="/monthly-expenses" element={<MonthlyExpenses />} />
             <Route path="/family"           element={<FamilySettings />} />
+            <Route path="/reports"          element={<Reports />} />
           </Route>
 
           <Route path="/" element={
