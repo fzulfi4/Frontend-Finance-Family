@@ -39,6 +39,40 @@ const monthLabel = (k) => {
   return new Date(y, m - 1, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
 };
 
+const getMatchedExpenseAmount = (m, transactions) => {
+  const now = new Date();
+  return transactions
+    .filter(tx => {
+      if (tx.type !== 'expense' || !tx.transaction_date) return false;
+      const txDate = new Date(tx.transaction_date);
+      const isCurrentMonth = txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+      if (!isCurrentMonth) return false;
+      
+      if (tx.monthly_expense_id) {
+        return tx.monthly_expense_id === m.id;
+      }
+      return tx.category_id === m.category_id && (!m.account_id || m.account_id === tx.account_id);
+    })
+    .reduce((sum, tx) => sum + tx.amount, 0);
+};
+
+const getMatchedIncomeAmount = (m, transactions) => {
+  const now = new Date();
+  return transactions
+    .filter(tx => {
+      if (tx.type !== 'income' || !tx.transaction_date) return false;
+      const txDate = new Date(tx.transaction_date);
+      const isCurrentMonth = txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+      if (!isCurrentMonth) return false;
+      
+      if (tx.monthly_income_id) {
+        return tx.monthly_income_id === m.id;
+      }
+      return tx.category_id === m.category_id && (!m.account_id || m.account_id === tx.account_id);
+    })
+    .reduce((sum, tx) => sum + tx.amount, 0);
+};
+
 /* ── Workbook builder helpers ───────────────────────────────────────────── */
 /**
  * Append rows to a worksheet. Each row is an array of cell values.
@@ -64,7 +98,7 @@ const mergeCells = (ws, merges) => {
 
 /* ── Sheet 1: Ringkasan (Summary) ───────────────────────────────────────── */
 const buildSummarySheet = (data) => {
-  const { transactions, wallets, goals, debts, monthlyExpenses, familyName, generatedAt } = data;
+  const { transactions, wallets, goals, debts, monthlyExpenses, monthlyIncomes = [], familyName, generatedAt } = data;
 
   const income  = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const expense = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
@@ -178,6 +212,22 @@ const buildSummarySheet = (data) => {
     row++;
   });
 
+  row++;
+  // Section: Target Pemasukan
+  ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { v: 'TARGET PEMASUKAN BULANAN', t: 's' };
+  row++;
+  const activeIncomes = (monthlyIncomes || []).filter(m => m.is_active).reduce((s, m) => s + m.amount, 0);
+  const incomeRows = [
+    ['Total Target Pemasukan',   activeIncomes,  fmtIDR(activeIncomes)],
+    ['Selisih Realisasi vs Target', income - activeIncomes, income >= activeIncomes ? '✅ Target Tercapai' : '⚠️ Belum Tercapai'],
+  ];
+  incomeRows.forEach(([label, val, note]) => {
+    ws[XLSX.utils.encode_cell({ r: row, c: 0 })] = { v: label, t: 's' };
+    ws[XLSX.utils.encode_cell({ r: row, c: 1 })] = { v: val, t: 'n' };
+    ws[XLSX.utils.encode_cell({ r: row, c: 2 })] = { v: String(note), t: 's' };
+    row++;
+  });
+
   ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: row, c: 4 } });
   setColWidths(ws, [42, 20, 28, 15, 15]);
   return ws;
@@ -187,7 +237,7 @@ const buildSummarySheet = (data) => {
 const buildTransactionSheet = (transactions) => {
   const headers = [
     'No', 'Tanggal', 'Jenis', 'Jumlah (IDR)', 'Akun Asal', 'Akun Tujuan',
-    'Kategori', 'Catatan', 'Dicatat Oleh', 'Dibuat Pada'
+    'Kategori', 'Rencana/Target Bulanan', 'Catatan', 'Dicatat Oleh', 'Dibuat Pada'
   ];
 
   const rows = transactions
@@ -200,13 +250,14 @@ const buildTransactionSheet = (transactions) => {
       t.account?.name || '-',
       t.to_account?.name || '-',
       t.category?.name || '-',
+      t.monthly_expense?.name || t.monthly_income?.name || '-',
       t.notes || '-',
       t.user?.full_name || '-',
       fmtDate(t.created_at),
     ]);
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-  setColWidths(ws, [5, 18, 14, 20, 18, 18, 16, 30, 18, 18]);
+  setColWidths(ws, [5, 18, 14, 20, 18, 18, 16, 24, 30, 18, 18]);
   return ws;
 };
 
@@ -318,6 +369,149 @@ const buildCategorySheet = (transactions) => {
   return ws;
 };
 
+/* ── Sheet 4B: Analisis Pos Bulanan (Batas Anggaran & Target Pemasukan) ─── */
+const buildBudgetIncomeAnalysisSheet = (transactions, monthlyExpenses = [], monthlyIncomes = []) => {
+  const expPosMap = {};
+  
+  // 1. Initialize with all active monthly expenses
+  const activeExpenses = monthlyExpenses.filter(e => e.is_active);
+  activeExpenses.forEach(me => {
+    expPosMap[me.name] = { 
+      total: 0, 
+      count: 0, 
+      limit: me.amount,
+      priority: me.priority === 'fixed' ? 'Tetap' : (me.priority === 'optional' ? 'Opsional' : me.priority || '-'),
+      category: me.category?.name || '-'
+    };
+  });
+
+  // 2. Aggregate transactions
+  transactions.filter(t => t.type === 'expense').forEach(t => {
+    const name = t.monthly_expense?.name || 'Tanpa Pos Anggaran';
+    if (!expPosMap[name]) {
+      expPosMap[name] = { 
+        total: 0, 
+        count: 0, 
+        limit: t.monthly_expense?.amount || 0,
+        priority: t.monthly_expense?.priority === 'fixed' ? 'Tetap' : (t.monthly_expense?.priority === 'optional' ? 'Opsional' : '-'),
+        category: t.category?.name || '-'
+      };
+    }
+    expPosMap[name].total += t.amount;
+    expPosMap[name].count++;
+  });
+
+  const totalExp = Object.values(expPosMap).reduce((s, v) => s + v.total, 0);
+  const sortedExp = Object.entries(expPosMap).sort((a, b) => b[1].total - a[1].total);
+
+  const headers = [
+    'No', 'Pos Anggaran', 'Kategori', 'Prioritas', 'Batas Anggaran (IDR)', 
+    'Total Pengeluaran (IDR)', 'Selisih (IDR)', 'Persen (%)', 'Jml Transaksi', 
+    'Rata-rata per Transaksi', '% dari Total', 'Status', 'Peringkat'
+  ];
+  
+  const rows = sortedExp.map(([pos, v], i) => {
+    const limit = v.limit;
+    const realized = v.total;
+    const diff = limit > 0 ? (limit - realized) : 0;
+    const pct = limit > 0 ? ((realized / limit) * 100).toFixed(1) + '%' : '0.0%';
+    const status = limit === 0 
+      ? '-' 
+      : (realized <= limit ? '✅ Aman' : '⚠️ Melebihi Batas');
+    
+    return [
+      i + 1,
+      pos,
+      v.category,
+      v.priority,
+      limit > 0 ? limit : 'Tanpa Batas',
+      realized,
+      limit > 0 ? diff : '-',
+      pct,
+      v.count,
+      v.count > 0 ? Math.round(realized / v.count) : 0,
+      fmtPct(realized, totalExp),
+      status,
+      i === 0 && realized > 0 ? '🥇 Terbesar' : i === 1 && realized > 0 ? '🥈' : i === 2 && realized > 0 ? '🥉' : '',
+    ];
+  });
+
+  const incPosMap = {};
+  
+  // 1. Initialize with all active monthly incomes
+  const activeIncomes = monthlyIncomes.filter(e => e.is_active);
+  activeIncomes.forEach(mi => {
+    incPosMap[mi.name] = { 
+      total: 0, 
+      count: 0, 
+      target: mi.amount,
+      category: mi.category?.name || '-'
+    };
+  });
+
+  // 2. Aggregate transactions
+  transactions.filter(t => t.type === 'income').forEach(t => {
+    const name = t.monthly_income?.name || 'Tanpa Pos Target';
+    if (!incPosMap[name]) {
+      incPosMap[name] = { 
+        total: 0, 
+        count: 0, 
+        target: t.monthly_income?.amount || 0,
+        category: t.category?.name || '-'
+      };
+    }
+    incPosMap[name].total += t.amount;
+    incPosMap[name].count++;
+  });
+
+  const totalInc = Object.values(incPosMap).reduce((s, v) => s + v.total, 0);
+  const sortedInc = Object.entries(incPosMap).sort((a, b) => b[1].total - a[1].total);
+
+  const incHeaders = [
+    'No', 'Pos Target', 'Kategori', 'Target Pemasukan (IDR)', 
+    'Total Pemasukan (IDR)', 'Selisih (IDR)', 'Persen (%)', 'Jml Transaksi', 
+    'Rata-rata per Transaksi', '% dari Total', 'Status'
+  ];
+
+  const incRows = sortedInc.map(([pos, v], i) => {
+    const target = v.target;
+    const realized = v.total;
+    const diff = realized - target;
+    const pct = target > 0 ? ((realized / target) * 100).toFixed(1) + '%' : '0.0%';
+    const status = target === 0 
+      ? '-' 
+      : (realized >= target ? '✅ Tercapai' : '⚠️ Belum Tercapai');
+
+    return [
+      i + 1,
+      pos,
+      v.category,
+      target > 0 ? target : 'Tanpa Target',
+      realized,
+      target > 0 ? diff : '-',
+      pct,
+      v.count,
+      v.count > 0 ? Math.round(realized / v.count) : 0,
+      fmtPct(realized, totalInc),
+      status
+    ];
+  });
+
+  const allRows = [
+    ['ANALISIS PENGELUARAN PER POS ANGGARAN', '', '', '', '', '', '', '', '', '', '', '', ''],
+    headers,
+    ...rows,
+    ['', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ['ANALISIS PEMASUKAN PER POS TARGET', '', '', '', '', '', '', '', '', '', '', '', ''],
+    incHeaders,
+    ...incRows,
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(allRows);
+  setColWidths(ws, [5, 28, 18, 12, 22, 22, 20, 12, 14, 22, 14, 16, 12]);
+  return ws;
+};
+
 /* ── Sheet 5: Akun & Dompet ─────────────────────────────────────────────── */
 const buildWalletSheet = (wallets, transactions) => {
   const headers = [
@@ -341,12 +535,17 @@ const buildWalletSheet = (wallets, transactions) => {
   });
 
   // Total
+  const totalBalance = wallets.reduce((s, w) => s + w.balance, 0);
+  const totalIncomeReal = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const totalExpenseReal = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const totalTxCount = transactions.length;
+
   rows.push([
     'TOTAL', '', '',
-    wallets.reduce((s, w) => s + w.balance, 0),
-    rows.reduce((s, r) => s + r[4], 0),
-    rows.reduce((s, r) => s + r[5], 0),
-    rows.reduce((s, r) => s + r[6], 0),
+    totalBalance,
+    totalIncomeReal,
+    totalExpenseReal,
+    totalTxCount,
   ]);
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
@@ -426,7 +625,8 @@ const buildDebtSheet = (debts) => {
 /* ── Sheet 8: Anggaran Bulanan ──────────────────────────────────────────── */
 const buildBudgetSheet = (monthlyExpenses, transactions) => {
   const headers = [
-    'No', 'Nama Anggaran', 'Kategori', 'Prioritas', 'Anggaran (IDR)', 'Status', 'Dibuat'
+    'No', 'Nama Anggaran', 'Kategori', 'Prioritas', 'Batas Anggaran (IDR)', 
+    'Realisasi (IDR)', 'Sisa Anggaran (IDR)', 'Persen (%)', 'Status', 'Dibuat'
   ];
 
   const rows = monthlyExpenses
@@ -434,15 +634,23 @@ const buildBudgetSheet = (monthlyExpenses, transactions) => {
       if (a.priority !== b.priority) return a.priority === 'fixed' ? -1 : 1;
       return b.amount - a.amount;
     })
-    .map((m, i) => [
-      i + 1,
-      m.name,
-      m.category?.name || '-',
-      m.priority === 'fixed' ? 'Tetap' : 'Opsional',
-      m.amount,
-      m.is_active ? '✅ Aktif' : '⏸️ Nonaktif',
-      fmtDate(m.created_at),
-    ]);
+    .map((m, i) => {
+      const realized = getMatchedExpenseAmount(m, transactions);
+      const remaining = m.amount - realized;
+      const pct = m.amount > 0 ? ((realized / m.amount) * 100).toFixed(1) + '%' : '0.0%';
+      return [
+        i + 1,
+        m.name,
+        m.category?.name || '-',
+        m.priority === 'fixed' ? 'Tetap' : 'Opsional',
+        m.amount,
+        realized,
+        remaining,
+        pct,
+        m.is_active ? '✅ Aktif' : '⏸️ Nonaktif',
+        fmtDate(m.created_at),
+      ];
+    });
 
   // Summary
   const fixed    = monthlyExpenses.filter(m => m.priority === 'fixed'    && m.is_active).reduce((s, m) => s + m.amount, 0);
@@ -453,22 +661,66 @@ const buildBudgetSheet = (monthlyExpenses, transactions) => {
   const allRows = [
     headers,
     ...rows,
-    ['', '', '', '', '', '', ''],
-    ['RINGKASAN ANGGARAN', '', '', '', '', '', ''],
-    ['Anggaran Tetap Aktif',   '', '', '', fixed,              '', ''],
-    ['Anggaran Opsional Aktif','', '', '', optional,           '', ''],
-    ['Total Anggaran Bulanan', '', '', '', totalMonthlyBudget,  '', ''],
-    ['Total Pengeluaran Real', '', '', '', totalExpense,        '', ''],
-    ['Selisih',                '', '', '', totalMonthlyBudget - totalExpense, '', totalMonthlyBudget >= totalExpense ? 'Dalam Anggaran' : 'Melebihi Anggaran'],
+    ['', '', '', '', '', '', '', '', '', ''],
+    ['RINGKASAN ANGGARAN', '', '', '', '', '', '', '', '', ''],
+    ['Anggaran Tetap Aktif',   '', '', '', fixed,              '', '', '', '', ''],
+    ['Anggaran Opsional Aktif','', '', '', optional,           '', '', '', '', ''],
+    ['Total Anggaran Bulanan', '', '', '', totalMonthlyBudget,  '', '', '', '', ''],
+    ['Total Pengeluaran Real', '', '', '', totalExpense,        '', '', '', '', ''],
+    ['Selisih',                '', '', '', totalMonthlyBudget - totalExpense, '', '', '', '', totalMonthlyBudget >= totalExpense ? 'Dalam Anggaran' : 'Melebihi Anggaran'],
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(allRows);
-  setColWidths(ws, [5, 28, 18, 12, 20, 14, 18]);
+  setColWidths(ws, [5, 28, 18, 12, 20, 20, 20, 12, 14, 18]);
+  return ws;
+};
+
+/* ── Sheet 9: Target Pemasukan Bulanan ─────────────────────────────────── */
+const buildIncomeSheet = (monthlyIncomes, transactions) => {
+  const headers = [
+    'No', 'Nama Pemasukan', 'Kategori', 'Target Pemasukan (IDR)', 
+    'Realisasi (IDR)', 'Kekurangan (IDR)', 'Persen (%)', 'Status', 'Dibuat'
+  ];
+
+  const rows = (monthlyIncomes || [])
+    .sort((a, b) => b.amount - a.amount)
+    .map((m, i) => {
+      const realized = getMatchedIncomeAmount(m, transactions);
+      const diff = Math.max(0, m.amount - realized);
+      const pct = m.amount > 0 ? ((realized / m.amount) * 100).toFixed(1) + '%' : '0.0%';
+      return [
+        i + 1,
+        m.name,
+        m.category?.name || '-',
+        m.amount,
+        realized,
+        diff,
+        pct,
+        m.is_active ? '✅ Aktif' : '⏸️ Nonaktif',
+        fmtDate(m.created_at),
+      ];
+    });
+
+  const totalIncomesTarget = (monthlyIncomes || []).filter(m => m.is_active).reduce((s, m) => s + m.amount, 0);
+  const totalIncomeReal = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+
+  const allRows = [
+    headers,
+    ...rows,
+    ['', '', '', '', '', '', '', '', ''],
+    ['RINGKASAN TARGET PEMASUKAN', '', '', '', '', '', '', '', ''],
+    ['Total Target Bulanan', '', '', totalIncomesTarget, '', '', '', '', ''],
+    ['Total Pemasukan Real', '', '', totalIncomeReal, '', '', '', '', ''],
+    ['Selisih Pencapaian', '', '', totalIncomeReal - totalIncomesTarget, '', '', '', '', totalIncomeReal >= totalIncomesTarget ? 'Target Tercapai' : 'Belum Tercapai'],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(allRows);
+  setColWidths(ws, [5, 28, 18, 20, 20, 20, 12, 14, 18]);
   return ws;
 };
 
 /* ── Main export function ───────────────────────────────────────────────── */
-export const generateExcelReport = ({ transactions, wallets, goals, debts, monthlyExpenses, familyName }) => {
+export const generateExcelReport = ({ transactions, wallets, goals, debts, monthlyExpenses, monthlyIncomes = [], familyName }) => {
   const generatedAt = new Date().toLocaleString('id-ID', {
     day: '2-digit', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -482,22 +734,24 @@ export const generateExcelReport = ({ transactions, wallets, goals, debts, month
     CreatedDate: new Date(),
   };
 
-  const data = { transactions, wallets, goals, debts, monthlyExpenses, familyName, generatedAt };
+  const data = { transactions, wallets, goals, debts, monthlyExpenses, monthlyIncomes, familyName, generatedAt };
 
   XLSX.utils.book_append_sheet(wb, buildSummarySheet(data),                            '📊 Ringkasan');
   XLSX.utils.book_append_sheet(wb, buildTransactionSheet(transactions),                '💸 Transaksi');
   XLSX.utils.book_append_sheet(wb, buildMonthlyAnalysisSheet(transactions),            '📈 Analisis Bulanan');
   XLSX.utils.book_append_sheet(wb, buildCategorySheet(transactions),                   '🏷️ Kategori');
+  XLSX.utils.book_append_sheet(wb, buildBudgetIncomeAnalysisSheet(transactions, monthlyExpenses, monthlyIncomes),       '📊 Analisis Pos Bulanan');
   XLSX.utils.book_append_sheet(wb, buildWalletSheet(wallets, transactions),            '💳 Akun & Dompet');
   XLSX.utils.book_append_sheet(wb, buildGoalSheet(goals),                             '🎯 Target Tabungan');
   XLSX.utils.book_append_sheet(wb, buildDebtSheet(debts),                             '💰 Hutang Piutang');
   XLSX.utils.book_append_sheet(wb, buildBudgetSheet(monthlyExpenses, transactions),   '📋 Anggaran Bulanan');
+  XLSX.utils.book_append_sheet(wb, buildIncomeSheet(monthlyIncomes, transactions),    '📋 Target Pemasukan');
 
   // Download
   const fileName = `FamFinance_Laporan_${familyName || 'Keluarga'}_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fileName);
 
-  return { fileName, sheetCount: 8, totalRows: transactions.length };
+  return { fileName, sheetCount: 10, totalRows: transactions.length };
 };
 
 /* ── Filtered Transactions Report Builder ───────────────────────────────── */
@@ -555,7 +809,7 @@ const buildFilteredSummarySheet = ({ transactions, activeFilters, familyName, ge
   return ws;
 };
 
-export const generateTransactionsExcel = ({ transactions, wallets, members, activeFilters, familyName }) => {
+export const generateTransactionsExcel = ({ transactions, wallets, members, monthlyExpenses = [], monthlyIncomes = [], activeFilters, familyName }) => {
   const generatedAt = new Date().toLocaleString('id-ID', {
     day: '2-digit', month: 'long', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
@@ -572,9 +826,10 @@ export const generateTransactionsExcel = ({ transactions, wallets, members, acti
   XLSX.utils.book_append_sheet(wb, buildFilteredSummarySheet({ transactions, activeFilters, familyName, generatedAt }), '📊 Ringkasan Filter');
   XLSX.utils.book_append_sheet(wb, buildTransactionSheet(transactions), '💸 Daftar Transaksi');
   XLSX.utils.book_append_sheet(wb, buildCategorySheet(transactions), '🏷️ Analisis Kategori');
+  XLSX.utils.book_append_sheet(wb, buildBudgetIncomeAnalysisSheet(transactions, monthlyExpenses, monthlyIncomes), '📊 Analisis Pos Bulanan');
 
   const fileName = `FamFinance_Transaksi_${familyName || 'Keluarga'}_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, fileName);
 
-  return { fileName, sheetCount: 3, totalRows: transactions.length };
+  return { fileName, sheetCount: 4, totalRows: transactions.length };
 };

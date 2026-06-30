@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import TourOverlay from './TourOverlay';
 
 const Layout = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -14,6 +15,7 @@ const Layout = () => {
           <Outlet />
         </div>
       </main>
+      <TourOverlay />
     </div>
   );
 };

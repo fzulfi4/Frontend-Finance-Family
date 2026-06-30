@@ -6,6 +6,7 @@ import { useWallets } from '../hooks/useWallets';
 import { useTransactions } from '../hooks/useTransactions';
 import { useGoals } from '../hooks/useGoals';
 import { useMonthlyExpenses } from '../hooks/useMonthlyExpenses';
+import { useMonthlyIncomes } from '../hooks/useMonthlyIncomes';
 import { useDebts } from '../hooks/useDebts';
 import { useMembers } from '../hooks/useMembers';
 import DatePicker from 'react-datepicker';
@@ -59,6 +60,77 @@ const CARD_THEMES = [
   },
 ];
 
+const getMatchedBudget = (tx, activeExpenses) => {
+  if (tx.type !== 'expense') return null;
+
+  // 1. Primary: match by monthly_expense_id
+  if (tx.monthly_expense_id) {
+    return activeExpenses.find(e => e.id === tx.monthly_expense_id) || null;
+  }
+
+  // 2. Fallback: match by category_id
+  if (!tx.category_id) return null;
+
+  // Cari budget aktif dengan category_id yang cocok
+  // Dan filter dompet agar tidak cross-wallet (jika budget terikat dompet tertentu)
+  const candidateBudgets = activeExpenses.filter(e => 
+    e.category_id === tx.category_id && 
+    (!e.account_id || e.account_id === tx.account_id)
+  );
+
+  if (candidateBudgets.length === 0) return null;
+  if (candidateBudgets.length === 1) return candidateBudgets[0];
+
+  // Jika konflik (ada > 1 budget aktif dengan kategori & dompet yang kompatibel)
+  // Lakukan pencocokan notes cerdas
+  const txNotes = (tx.notes || '').toLowerCase();
+  
+  const specificMatch = candidateBudgets.find(e => {
+    const nameLower = e.name.toLowerCase();
+    // Notes mengandung nama budget atau sebaliknya (panjang notes minimal 2 karakter)
+    return txNotes.includes(nameLower) || (txNotes.length >= 2 && nameLower.includes(txNotes));
+  });
+
+  if (specificMatch) return specificMatch;
+
+  // Jika notes tidak spesifik, default ke budget pertama (misal: TES3)
+  return candidateBudgets[0];
+};
+
+const getMatchedIncome = (tx, activeIncomes) => {
+  if (tx.type !== 'income') return null;
+
+  // 1. Primary: match by monthly_income_id
+  if (tx.monthly_income_id) {
+    return activeIncomes.find(e => e.id === tx.monthly_income_id) || null;
+  }
+
+  // 2. Fallback: match by category_id
+  if (!tx.category_id) return null;
+
+  // Cari target pemasukan aktif dengan category_id yang cocok
+  // Dan filter dompet agar tidak cross-wallet (jika target terikat dompet tertentu)
+  const candidateIncomes = activeIncomes.filter(e => 
+    e.category_id === tx.category_id && 
+    (!e.account_id || e.account_id === tx.account_id)
+  );
+
+  if (candidateIncomes.length === 0) return null;
+  if (candidateIncomes.length === 1) return candidateIncomes[0];
+
+  // Lakukan pencocokan notes cerdas
+  const txNotes = (tx.notes || '').toLowerCase();
+  
+  const specificMatch = candidateIncomes.find(e => {
+    const nameLower = e.name.toLowerCase();
+    return txNotes.includes(nameLower) || (txNotes.length >= 2 && nameLower.includes(txNotes));
+  });
+
+  if (specificMatch) return specificMatch;
+
+  return candidateIncomes[0];
+};
+
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
   const { t } = useTranslation();
@@ -68,6 +140,7 @@ const Dashboard = () => {
   const { transactions, loading: txLoading, fetchTransactions, updateTransaction, deleteTransaction } = useTransactions(!!user?.family_id);
   const { goals, loading: goalsLoading } = useGoals(!!user?.family_id);
   const { expenses: monthlyExpenses, loading: expensesLoading } = useMonthlyExpenses(!!user?.family_id);
+  const { incomes: monthlyIncomes, loading: incomesLoading } = useMonthlyIncomes(!!user?.family_id);
   const { totalPayable, totalReceivable, loading: debtsLoading } = useDebts(!!user?.family_id);
   const { members, loading: membersLoading } = useMembers(!!user?.family_id);
 
@@ -187,6 +260,12 @@ const Dashboard = () => {
         income += tx.amount;
       } else if (tx.type === 'expense') {
         expense += tx.amount;
+      } else if (tx.type === 'transfer') {
+        // Transfer hanya dihitung sebagai pemasukan untuk dompet yang DITUJU
+        if (selectedWalletId !== 'all' && tx.to_account_id === selectedWalletId) {
+          income += tx.amount;
+        }
+        // Transfer TIDAK dihitung sebagai pengeluaran untuk dompet asal
       }
     });
 
@@ -194,7 +273,7 @@ const Dashboard = () => {
     const savingsRate = income > 0 ? Math.max(0, Math.round((net / income) * 100)) : 0;
 
     return { income, expense, net, savingsRate };
-  }, [filteredTransactions]);
+  }, [filteredTransactions, selectedWalletId]);
 
   // Filter monthly expenses that are relevant to the current wallet selection:
   // – If 'all' wallets selected: show all active items
@@ -220,15 +299,31 @@ const Dashboard = () => {
     return relevantMonthlyExpenses.reduce((sum, e) => sum + e.amount, 0);
   }, [relevantMonthlyExpenses]);
 
+  const relevantMonthlyIncomes = useMemo(() => {
+    const activeIncomes = monthlyIncomes.filter(e => e.is_active);
+    if (selectedWalletId === 'all') return activeIncomes;
+
+    const walletSpecific = activeIncomes.filter(e => e.account_id && e.account_id === selectedWalletId);
+    if (walletSpecific.length > 0) {
+      return walletSpecific;
+    }
+    return activeIncomes.filter(e => !e.account_id);
+  }, [monthlyIncomes, selectedWalletId]);
+
+  const monthlyIncomeTarget = useMemo(() => {
+    return relevantMonthlyIncomes.reduce((sum, e) => sum + e.amount, 0);
+  }, [relevantMonthlyIncomes]);
+
   const categoryCounts = useMemo(() => {
     const counts = {};
-    relevantMonthlyExpenses.forEach(e => {
+    // Hitung dari SEMUA anggaran aktif (bukan hanya yang relevan dengan filter)
+    monthlyExpenses.filter(e => e.is_active).forEach(e => {
       if (e.category_id) {
         counts[e.category_id] = (counts[e.category_id] || 0) + 1;
       }
     });
     return counts;
-  }, [relevantMonthlyExpenses]);
+  }, [monthlyExpenses]);
 
   const budgetProgressPercent = useMemo(() => {
     if (monthlyBudgetLimit === 0) return 0;
@@ -247,23 +342,33 @@ const Dashboard = () => {
   }, [metrics.expense, daysInPeriod]);
 
   // ─── Top Category Spending ───
-  const topCategory = useMemo(() => {
-    const map = {};
-    filteredTransactions
-      .filter(tx => tx.type === 'expense')
-      .forEach(tx => {
-        const name = tx.category?.name || t('noCategory');
-        map[name] = (map[name] || 0) + tx.amount;
-      });
+  const topMonthlyBudget = useMemo(() => {
+    const now = new Date();
+    const activeExpenses = monthlyExpenses.filter(e => e.is_active && e.amount > 0);
+    let top = null;
+    let topSpent = 0;
 
-    let top = { name: '-', value: 0 };
-    Object.entries(map).forEach(([name, val]) => {
-      if (val > top.value) {
-        top = { name, value: val };
+    activeExpenses.forEach(expense => {
+      const spent = transactions
+        .filter(tx => {
+          if (tx.type !== 'expense' || !tx.transaction_date) return false;
+          const txDate = new Date(tx.transaction_date);
+          const isCurrentMonth = txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+          if (!isCurrentMonth) return false;
+          
+          const matched = getMatchedBudget(tx, activeExpenses);
+          return matched && matched.id === expense.id;
+        })
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+      if (spent > topSpent) {
+        topSpent = spent;
+        top = { ...expense, spent };
       }
     });
+
     return top;
-  }, [filteredTransactions, t]);
+  }, [monthlyExpenses, transactions]);
 
   // ─── Family Member Expense Contribution ───
   const memberContributions = useMemo(() => {
@@ -288,62 +393,77 @@ const Dashboard = () => {
     }).sort((a, b) => b.value - a.value);
   }, [filteredTransactions, members]);
 
-  // ─── Budget Alert Center (Limits check on current selected period) ───
-  const budgetAlerts = useMemo(() => {
-    const alerts = [];
-    if (relevantMonthlyExpenses.length === 0) return [];
+  // Kontribusi pengeluaran per dompet
+  const walletContributions = useMemo(() => {
+    const map = {};
 
-    // Group actual category expense from filtered transactions
-    const actualCategoryExpenses = {};
     filteredTransactions
       .filter(tx => tx.type === 'expense')
       .forEach(tx => {
-        if (tx.category_id) {
-          actualCategoryExpenses[tx.category_id] = (actualCategoryExpenses[tx.category_id] || 0) + tx.amount;
+        if (tx.account_id) {
+          map[tx.account_id] = (map[tx.account_id] || 0) + tx.amount;
         }
       });
 
-    relevantMonthlyExpenses.forEach(expense => {
-      let actual = 0;
+    return wallets
+      .map(w => {
+        const spent = map[w.id] || 0;
+        // Kapasitas = saldo sekarang + yang sudah dipakai periode ini
+        // Contoh: saldo 300rb, terpakai 700rb → kapasitas 1jt → 70%
+        const capacity = (w.balance || 0) + spent;
+        const percentage = capacity > 0 ? Math.min(100, Math.round((spent / capacity) * 100)) : 0;
+        const remaining = w.balance || 0;
+        return { ...w, spent, percentage, remaining, capacity };
+      })
+      .filter(w => w.spent > 0)
+      .sort((a, b) => b.percentage - a.percentage);
+  }, [filteredTransactions, wallets]);
+
+  // ─── Budget Alert Center (Limits check on current selected period) ───
+  const budgetAlerts = useMemo(() => {
+    const alerts = [];
+    const activeExpenses = monthlyExpenses.filter(e => e.is_active && e.amount > 0);
+    if (activeExpenses.length === 0) return [];
+
+    const now = new Date();
+
+    activeExpenses.forEach(expense => {
       const limit = expense.amount;
-      if (limit === 0) return;
 
-      // Match by note if multiple budgets share the category, or if it points to the general category 'Lainnya'
-      const isMultipleOrLainnya = expense.category_id && (
-        categoryCounts[expense.category_id] > 1 || 
-        expense.category?.name?.toLowerCase() === 'lainnya'
-      );
-
-      if (isMultipleOrLainnya) {
-        const budgetNameLower = expense.name.toLowerCase();
-        actual = filteredTransactions
-          .filter(tx => tx.type === 'expense' && tx.category_id === expense.category_id)
-          .filter(tx => tx.notes && tx.notes.toLowerCase().includes(budgetNameLower))
-          .reduce((sum, tx) => sum + tx.amount, 0);
-      } else {
-        actual = actualCategoryExpenses[expense.category_id] || 0;
-      }
+      const actual = transactions
+        .filter(tx => {
+          if (tx.type !== 'expense' || !tx.transaction_date) return false;
+          const txDate = new Date(tx.transaction_date);
+          const isCurrentMonth = txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+          if (!isCurrentMonth) return false;
+          
+          const matched = getMatchedBudget(tx, activeExpenses);
+          return matched && matched.id === expense.id;
+        })
+        .reduce((sum, tx) => sum + tx.amount, 0);
 
       const ratio = actual / limit;
+      const walletLabel = expense.account?.name ? ` [${expense.account.name}]` : '';
+
       if (ratio >= 1.0) {
         alerts.push({
           id: expense.id,
           type: 'danger',
           categoryName: expense.name,
-          message: `Limit Terlewati! Kategori "${expense.name}" menghabiskan ${formatCurrency(actual)} (Limit: ${formatCurrency(limit)}).`
+          message: `Limit Terlewati! "${expense.name}"${walletLabel} menghabiskan ${formatCurrency(actual)} dari limit ${formatCurrency(limit)}.`
         });
       } else if (ratio >= 0.8) {
         alerts.push({
           id: expense.id,
           type: 'warning',
           categoryName: expense.name,
-          message: `Mendekati Limit! Kategori "${expense.name}" mencapai ${Math.round(ratio * 100)}% anggaran (${formatCurrency(actual)}/${formatCurrency(limit)}).`
+          message: `Mendekati Limit! "${expense.name}"${walletLabel} mencapai ${Math.round(ratio * 100)}% anggaran (${formatCurrency(actual)}/${formatCurrency(limit)}).`
         });
       }
     });
 
     return alerts;
-  }, [relevantMonthlyExpenses, filteredTransactions, categoryCounts]);
+  }, [monthlyExpenses, transactions]);
 
   // ─── Generate Daily Spending Bar Chart Data ───
   const dailySpendingChart = useMemo(() => {
@@ -452,7 +572,16 @@ const Dashboard = () => {
 
     transactions.forEach(tx => {
       if (!tx.transaction_date) return;
-      if (selectedWalletId !== 'all' && tx.account_id !== selectedWalletId) return;
+
+      // Wallet filter — sertakan transfer yang masuk/keluar dari dompet terpilih
+      if (selectedWalletId !== 'all') {
+        if (tx.type === 'transfer') {
+          if (tx.account_id !== selectedWalletId && tx.to_account_id !== selectedWalletId) return;
+        } else {
+          if (tx.account_id !== selectedWalletId) return;
+        }
+      }
+
       if (selectedMemberId !== 'all' && tx.user_id !== selectedMemberId) return;
 
       const txDate = new Date(tx.transaction_date);
@@ -465,12 +594,17 @@ const Dashboard = () => {
           bucket.income += tx.amount;
         } else if (tx.type === 'expense') {
           bucket.expense += tx.amount;
+        } else if (tx.type === 'transfer' && selectedWalletId !== 'all') {
+          // Transfer hanya dihitung sebagai pemasukan untuk dompet yang dituju
+          if (tx.to_account_id === selectedWalletId) bucket.income += tx.amount;
+          // Transfer TIDAK dihitung sebagai pengeluaran untuk dompet asal
         }
       }
     });
 
     return months;
   }, [transactions, selectedWalletId, selectedMemberId]);
+
 
   const curvedAreaChart = useMemo(() => {
     if (chartData.length === 0) return null;
@@ -527,29 +661,47 @@ const Dashboard = () => {
   }, [chartData]);
 
   // ─── Current Month Category Spending Distribution ───
-  const categoryDistribution = useMemo(() => {
+  const budgetDistribution = useMemo(() => {
+    // Gunakan relevantMonthlyExpenses agar mengikuti filter dompet
+    const activeExpenses = relevantMonthlyExpenses.filter(e => e.is_active);
+    const COLORS = [
+      '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6',
+      '#06b6d4','#ec4899','#84cc16','#f97316','#a78bfa'
+    ];
+
     const map = {};
-    let totalExpense = 0;
+    activeExpenses.forEach((expense, idx) => {
+      map[expense.id] = {
+        id: expense.id,
+        name: expense.name,
+        walletName: expense.account?.name || null,
+        value: 0,
+        color: COLORS[idx % COLORS.length],
+      };
+    });
 
     filteredTransactions.forEach(tx => {
       if (tx.type !== 'expense' || !tx.transaction_date) return;
-      const catName = tx.category?.name || t('noCategory');
-      const catColor = tx.category?.color || '#ef4444';
-      if (!map[catName]) {
-        map[catName] = { name: catName, value: 0, color: catColor };
+
+      const matched = getMatchedBudget(tx, activeExpenses);
+      if (matched && map[matched.id]) {
+        map[matched.id].value += tx.amount;
       }
-      map[catName].value += tx.amount;
-      totalExpense += tx.amount;
     });
 
-    const list = Object.values(map).sort((a, b) => b.value - a.value);
-    return { list, total: totalExpense };
-  }, [filteredTransactions, t]);
+    // allList: semua anggaran (termasuk yang belum terpakai), urut terbesar
+    const allList = Object.values(map).sort((a, b) => b.value - a.value);
+    // spentList: hanya yang terpakai (untuk donut)
+    const spentList = allList.filter(b => b.value > 0);
+    const total = spentList.reduce((sum, b) => sum + b.value, 0);
+
+    return { allList, spentList, total };
+  }, [relevantMonthlyExpenses, filteredTransactions]);
 
   const donutChart = useMemo(() => {
-    const list = categoryDistribution.list;
-    const total = categoryDistribution.total;
-    if (total === 0) return null;
+    const list = budgetDistribution.spentList;
+    const total = budgetDistribution.total;
+    if (list.length === 0) return null;
 
     let accumulatedPercentage = 0;
     const r = 50;
@@ -559,9 +711,7 @@ const Dashboard = () => {
       const percentage = item.value / total;
       const strokeLength = percentage * circ;
       const strokeOffset = circ - strokeLength + (accumulatedPercentage * circ);
-      
       accumulatedPercentage -= percentage;
-
       return {
         ...item,
         percentage: Math.round(percentage * 100),
@@ -572,7 +722,7 @@ const Dashboard = () => {
     });
 
     return { slices, total };
-  }, [categoryDistribution]);
+  }, [budgetDistribution]);
 
   // ─── Top Cards Sparklines ──────────────────────────────────────────────────
   const drawSparkline = (data, key, color) => {
@@ -601,6 +751,7 @@ const Dashboard = () => {
   };
 
   const [activeTab, setActiveTab] = useState('general'); // 'general', 'transactions'
+  const [activeBudgetTab, setActiveBudgetTab] = useState('expenses'); // 'expenses', 'incomes'
 
   const handleExportExcel = () => {
     if (filteredTransactions.length === 0) return;
@@ -664,6 +815,7 @@ const Dashboard = () => {
       {/* ── Quick Action Tiles ── */}
       <div className="grid grid-cols-3 gap-4">
         <button
+          id="tour-dashboard-income"
           onClick={() => { setTxType('income'); setIsTxModalOpen(true); }}
           className="flex flex-col items-center justify-center gap-2.5 p-5 bg-gradient-to-br from-[#102a22]/60 to-[#071d13]/60 hover:from-[#133e30]/80 hover:to-[#09291b]/80 border border-accent-green/20 hover:border-accent-green/45 rounded-2xl transition-all shadow-[0_4px_20px_rgba(16,185,129,0.06)] hover:shadow-[0_4px_28px_rgba(16,185,129,0.15)] group active:scale-95 cursor-pointer"
         >
@@ -673,6 +825,7 @@ const Dashboard = () => {
           <span className="text-xs md:text-sm font-bold text-accent-greenLt">Pemasukan</span>
         </button>
         <button
+          id="tour-dashboard-expense"
           onClick={() => { setTxType('expense'); setIsTxModalOpen(true); }}
           className="flex flex-col items-center justify-center gap-2.5 p-5 bg-gradient-to-br from-[#3b1717]/60 to-[#1e0b0b]/60 hover:from-[#4c1c1c]/80 hover:to-[#2b0d0d]/80 border border-accent-red/20 hover:border-accent-red/45 rounded-2xl transition-all shadow-[0_4px_20px_rgba(239,68,68,0.06)] hover:shadow-[0_4px_28px_rgba(239,68,68,0.15)] group active:scale-95 cursor-pointer"
         >
@@ -682,6 +835,7 @@ const Dashboard = () => {
           <span className="text-xs md:text-sm font-bold text-accent-redLt">Pengeluaran</span>
         </button>
         <button
+          id="tour-dashboard-transfer"
           onClick={() => setIsTransferModalOpen(true)}
           className="flex flex-col items-center justify-center gap-2.5 p-5 bg-gradient-to-br from-[#131d35]/60 to-[#0a0f1d]/60 hover:from-[#1b2b4b]/80 hover:to-[#0f1b35]/80 border border-accent-blue/20 hover:border-accent-blue/45 rounded-2xl transition-all shadow-[0_4px_20px_rgba(59,130,246,0.06)] hover:shadow-[0_4px_28px_rgba(59,130,246,0.15)] group active:scale-95 cursor-pointer"
         >
@@ -693,7 +847,7 @@ const Dashboard = () => {
       </div>
 
       {/* ── Wallet Overview Section (Always Visible) ── */}
-      <div className="space-y-4">
+      <div id="tour-dashboard-wallets" className="space-y-4">
         <div className="flex items-center justify-between border-b border-white/5 pb-2">
           <h3 className="font-bold text-base flex items-center gap-2.5 text-gray-200">
             <CreditCard size={18} className="text-accent-blue" />
@@ -1030,15 +1184,28 @@ const Dashboard = () => {
               </div>
             </Card>
 
-            {/* Insight 2: Top Category */}
+            {/* Insight 2: Top Monthly Budget */}
             <Card className="p-5 bg-[#0e1122]/40 border-white/5 flex items-center gap-4 hover:border-accent-red/15 transition-all">
               <div className="p-3.5 bg-accent-red/10 text-accent-red rounded-2xl border border-accent-red/10">
-                <ArrowDownRight size={20} />
+                <CalendarClock size={20} />
               </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Kategori Pengeluaran Terbesar</p>
-                <p className="text-base font-extrabold text-gray-200 mt-1 truncate">{topCategory.name}</p>
-                <p className="text-[10px] text-gray-500 mt-1">Total: {formatCurrency(topCategory.value)}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider">Pengeluaran Bulanan Terbesar</p>
+                {topMonthlyBudget ? (
+                  <>
+                    <p className="text-base font-extrabold text-gray-200 mt-1 truncate">{topMonthlyBudget.name}</p>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className="text-[10px] text-gray-500">Terpakai: {formatCurrency(topMonthlyBudget.spent)}</span>
+                      {topMonthlyBudget.account?.name && (
+                        <span className="text-[9px] font-bold text-accent-blue bg-accent-blue/10 border border-accent-blue/20 px-1.5 py-0.5 rounded-full">
+                          💳 {topMonthlyBudget.account.name}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-base font-extrabold text-gray-400 mt-1">-</p>
+                )}
               </div>
             </Card>
 
@@ -1284,85 +1451,105 @@ const Dashboard = () => {
                 )}
               </Card>
 
-              {/* Chart 3: Category Expense Donut Chart */}
+              {/* Chart 3: Monthly Budget Donut Chart */}
               <Card className="p-6 bg-[#0c0e1b]/60 border-white/5">
                 <div className="flex justify-between items-center mb-6">
                   <div>
                     <h3 className="font-bold text-base md:text-lg flex items-center gap-2 text-gray-200">
-                      <Percent size={20} className="text-gray-400" />
-                      Kategori Pengeluaran Terfilter
+                      <CalendarClock size={20} className="text-accent-blue" />
+                      Pengeluaran Bulanan Terfilter
                     </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Persentase pengelompokan anggaran berdasarkan alokasi dana periodik</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Persentase pengeluaran berdasarkan anggaran bulanan yang sudah dibuat</p>
                   </div>
+                  <span className="text-[10px] text-gray-500 font-bold bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+                    {budgetDistribution.allList.length} Anggaran
+                  </span>
                 </div>
 
                 {txLoading ? (
-                  <div className="h-[170px] flex items-center justify-center text-gray-500 text-sm">Memuat kategori...</div>
-                ) : !donutChart ? (
+                  <div className="h-[170px] flex items-center justify-center text-gray-500 text-sm">Memuat anggaran...</div>
+                ) : budgetDistribution.allList.length === 0 ? (
                   <div className="py-10 text-center text-gray-500 text-sm flex flex-col items-center justify-center gap-2 bg-black/10 rounded-2xl border border-white/5">
                     <CalendarClock size={36} className="opacity-20 mb-1 animate-float" />
-                    <p>Belum ada pengeluaran pada periode terfilter.</p>
+                    <p>Belum ada anggaran bulanan aktif.</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col sm:flex-row items-center justify-around gap-8">
-                    {/* SVG Donut */}
-                    <div className="relative w-40 h-40 flex-shrink-0">
-                      <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
-                        <circle cx="70" cy="70" r="50" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="15" />
-                        {donutChart.slices.map((slice, idx) => (
-                          <circle
-                            key={idx}
-                            cx="70"
-                            cy="70"
-                            r="50"
-                            fill="transparent"
-                            stroke={slice.color}
-                            strokeWidth="15"
-                            strokeDasharray={slice.circ}
-                            strokeDashoffset={slice.strokeOffset}
-                            className="transition-all duration-500 ease-out cursor-pointer hover:stroke-[18px]"
-                            onMouseEnter={() => setHoveredCategory(slice)}
-                            onMouseLeave={() => setHoveredCategory(null)}
-                          />
-                        ))}
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-4">
-                        <span className="text-[10px] text-gray-400 uppercase tracking-widest font-extrabold truncate max-w-full">
-                          {hoveredCategory ? hoveredCategory.name : 'Total Filter'}
-                        </span>
-                        <span className="text-sm font-extrabold text-white mt-1 truncate max-w-full">
-                          {formatCurrency(hoveredCategory ? hoveredCategory.value : donutChart.total)}
-                        </span>
-                        {hoveredCategory && (
-                          <span className="text-[10px] text-accent-blue font-bold mt-0.5 bg-accent-blue/10 px-2 py-0.2 rounded-full border border-accent-blue/25">
-                            {hoveredCategory.percentage}%
+                  <div className="flex flex-col sm:flex-row items-start justify-around gap-6">
+                    {/* SVG Donut — hanya tampil jika ada pengeluaran */}
+                    {donutChart && (
+                      <div className="relative w-36 h-36 flex-shrink-0 self-center">
+                        <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
+                          <circle cx="70" cy="70" r="50" fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="15" />
+                          {donutChart.slices.map((slice, idx) => (
+                            <circle
+                              key={idx}
+                              cx="70"
+                              cy="70"
+                              r="50"
+                              fill="transparent"
+                              stroke={slice.color}
+                              strokeWidth="15"
+                              strokeDasharray={slice.circ}
+                              strokeDashoffset={slice.strokeOffset}
+                              className="transition-all duration-500 ease-out cursor-pointer hover:stroke-[18px]"
+                              onMouseEnter={() => setHoveredCategory(slice)}
+                              onMouseLeave={() => setHoveredCategory(null)}
+                            />
+                          ))}
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none p-4">
+                          <span className="text-[10px] text-gray-400 uppercase tracking-widest font-extrabold truncate max-w-full">
+                            {hoveredCategory ? hoveredCategory.name : 'Total'}
                           </span>
-                        )}
+                          <span className="text-sm font-extrabold text-white mt-1 truncate max-w-full">
+                            {formatCurrency(hoveredCategory ? hoveredCategory.value : donutChart.total)}
+                          </span>
+                          {hoveredCategory && (
+                            <span className="text-[10px] text-accent-blue font-bold mt-0.5 bg-accent-blue/10 px-2 py-0.5 rounded-full border border-accent-blue/25">
+                              {hoveredCategory.percentage}%
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {/* Donut Legend */}
-                    <div className="flex-1 w-full max-w-xs space-y-2">
-                      {donutChart.slices.slice(0, 5).map((slice, idx) => (
-                        <div 
-                          key={idx} 
-                          className={`flex items-center justify-between p-2.5 rounded-xl border border-transparent transition-all cursor-pointer ${hoveredCategory?.name === slice.name ? 'bg-white/5 border-white/10 scale-[1.02] shadow-lg' : ''}`}
-                          onMouseEnter={() => setHoveredCategory(slice)}
+                    {/* Legend: tampilkan SEMUA anggaran termasuk yang belum terpakai */}
+                    <div className="flex-1 w-full space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                      {budgetDistribution.allList.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          className={`flex items-center justify-between p-2 rounded-xl border border-transparent transition-all cursor-pointer ${
+                            hoveredCategory?.name === item.name ? 'bg-white/5 border-white/10 scale-[1.01]' : 'hover:bg-white/3'
+                          }`}
+                          onMouseEnter={() => item.value > 0 ? setHoveredCategory(item) : null}
                           onMouseLeave={() => setHoveredCategory(null)}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: slice.color }}></span>
-                            <span className="text-xs text-gray-300 font-bold truncate">{slice.name}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ backgroundColor: item.value > 0 ? item.color : 'rgba(255,255,255,0.1)' }}
+                            />
+                            <div className="min-w-0">
+                              <span className={`text-xs font-bold truncate block ${item.value > 0 ? 'text-gray-200' : 'text-gray-500'}`}>
+                                {item.name}
+                              </span>
+                              {item.walletName && (
+                                <span className="text-[9px] text-accent-blue/60 font-bold">💳 {item.walletName}</span>
+                              )}
+                            </div>
                           </div>
                           <div className="text-right pl-2 shrink-0">
-                            <span className="text-xs font-extrabold text-white">{formatCurrency(slice.value)}</span>
-                            <span className="text-[10px] text-gray-500 block font-bold mt-0.5">{slice.percentage}%</span>
+                            <span className={`text-xs font-extrabold ${item.value > 0 ? 'text-white' : 'text-gray-600'}`}>
+                              {item.value > 0 ? formatCurrency(item.value) : '-'}
+                            </span>
+                            {item.value > 0 && donutChart && (
+                              <span className="text-[10px] text-gray-500 block font-bold mt-0.5">
+                                {Math.round((item.value / donutChart.total) * 100)}%
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}
-                      {donutChart.slices.length > 5 && (
-                        <p className="text-[10px] text-gray-500 text-center italic mt-2.5">+{donutChart.slices.length - 5} Kategori lainnya</p>
-                      )}
                     </div>
                   </div>
                 )}
@@ -1372,42 +1559,59 @@ const Dashboard = () => {
             {/* RIGHT COLUMN: Goals, Budgets, Debts, & Member Contribution (4 columns) */}
             <div className="lg:col-span-4 space-y-6">
               
-              {/* Widget: Family Members Contribution */}
+              {/* Widget: Wallet Expense Contribution */}
               <Card className="space-y-5 p-5 bg-[#0c0e1b]/60 border-white/5">
-                <h3 className="font-bold text-sm flex items-center gap-2.5 text-gray-200">
-                  <Users size={18} className="text-accent-blue" />
-                  Kontribusi Pengeluaran Anggota
-                </h3>
+                <div className="flex justify-between items-center">
+                  <h3 className="font-bold text-sm flex items-center gap-2.5 text-gray-200">
+                    <Wallet size={18} className="text-accent-blue" />
+                    Kontribusi Pengeluaran Dompet
+                  </h3>
+                  <span className="text-[10px] text-gray-500 font-bold bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+                    {walletContributions.length} Dompet
+                  </span>
+                </div>
 
-                {membersLoading ? (
-                  <p className="text-xs text-gray-500 py-3 text-center">Memuat data anggota...</p>
-                ) : memberContributions.length === 0 ? (
-                  <p className="text-xs text-gray-500 text-center py-2">Belum ada catatan kontribusi pengeluaran.</p>
+                {walletsLoading ? (
+                  <p className="text-xs text-gray-500 py-3 text-center">Memuat data dompet...</p>
+                ) : walletContributions.length === 0 ? (
+                  <p className="text-xs text-gray-500 text-center py-2">Belum ada pengeluaran pada periode ini.</p>
                 ) : (
                   <div className="space-y-4">
-                    {memberContributions.map(member => (
-                      <div key={member.id} className="space-y-1.5">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-bold text-gray-200 truncate flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent-blue shadow-[0_0_6px_rgba(59,130,246,0.8)]" />
-                            {member.full_name}
-                            {member.role === 'admin' && (
-                              <span className="text-[8px] bg-accent-blue/10 text-accent-blue border border-accent-blue/20 px-1.5 py-0.2 rounded font-extrabold uppercase tracking-wide">Admin</span>
-                            )}
-                          </span>
-                          <span className="font-extrabold text-gray-300">{member.percentage}%</span>
+                    {walletContributions.map((wallet, idx) => {
+                      const dotColors = ['bg-accent-blue', 'bg-accent-green', 'bg-accent-amber', 'bg-accent-red', 'bg-purple-500'];
+                      const dot = dotColors[idx % dotColors.length];
+                      const barColor = wallet.percentage >= 100
+                        ? 'bg-accent-red shadow-[0_0_6px_rgba(239,68,68,0.5)]'
+                        : wallet.percentage >= 75
+                        ? 'bg-amber-500'
+                        : 'bg-gradient-to-r from-accent-blue to-accent-violet';
+                      const pctColor = wallet.percentage >= 100
+                        ? 'text-accent-red animate-pulse'
+                        : wallet.percentage >= 75
+                        ? 'text-amber-400'
+                        : 'text-gray-300';
+                      return (
+                        <div key={wallet.id} className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-bold text-gray-200 truncate flex items-center gap-2">
+                              <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+                              💳 {wallet.name}
+                            </span>
+                            <span className={`font-extrabold ${pctColor}`}>{wallet.percentage}%</span>
+                          </div>
+                          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full ${barColor} rounded-full transition-all duration-300`}
+                              style={{ width: `${wallet.percentage}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between text-[10px] text-gray-500 font-bold">
+                            <span>Terpakai: {formatCurrency(wallet.spent)}</span>
+                            <span>Total: {formatCurrency(wallet.capacity)}</span>
+                          </div>
                         </div>
-                        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-gradient-to-r from-accent-blue to-accent-violet rounded-full transition-all duration-300"
-                            style={{ width: `${member.percentage}%` }}
-                          />
-                        </div>
-                        <div className="flex justify-between text-[10px] text-gray-500 font-bold">
-                          <span>Total Belanja: {formatCurrency(member.value)}</span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </Card>
@@ -1455,106 +1659,179 @@ const Dashboard = () => {
                 )}
               </Card>
 
-              {/* Monthly Budget Limits Widget */}
-              <Card className="space-y-5 p-5 bg-[#0c0e1b]/60 border-white/5">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-bold text-sm flex items-center gap-2.5 text-gray-200">
-                    <CalendarClock size={18} className="text-accent-blue" />
-                    Limit Anggaran Aktif
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    {selectedWalletId !== 'all' && (
-                      <span className="text-[9px] text-accent-blue font-bold bg-accent-blue/10 px-2 py-0.5 rounded-full border border-accent-blue/20 uppercase tracking-wider">
-                        💳 Filter Dompet
+              {/* Monthly Budget & Income Targets Widget */}
+              <Card className="space-y-4 p-5 bg-[#0c0e1b]/60 border-white/5 flex flex-col justify-between">
+                <div className="flex flex-col gap-3 font-medium">
+                  {/* Card Header & Tab Toggle */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
+                    <h3 className="font-bold text-sm flex items-center gap-2 text-gray-200">
+                      <CalendarClock size={18} className={activeBudgetTab === 'expenses' ? 'text-accent-blue animate-pulse' : 'text-accent-green animate-pulse'} />
+                      Pos Anggaran & Target Bulanan
+                    </h3>
+                    <div className="flex bg-[#0f1224]/85 border border-white/5 p-0.5 rounded-xl text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setActiveBudgetTab('expenses')}
+                        className={`px-2.5 py-1.5 font-bold rounded-lg transition-all duration-200 cursor-pointer ${activeBudgetTab === 'expenses' ? 'bg-accent-blue/10 text-accent-blue border border-accent-blue/20' : 'text-gray-400 hover:text-white border border-transparent'}`}
+                      >
+                        Batas Anggaran
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveBudgetTab('incomes')}
+                        className={`px-2.5 py-1.5 font-bold rounded-lg transition-all duration-200 cursor-pointer ${activeBudgetTab === 'incomes' ? 'bg-accent-green/10 text-accent-green border border-accent-green/20' : 'text-gray-400 hover:text-white border border-transparent'}`}
+                      >
+                        Target Pemasukan
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Wallet filter notice badge */}
+                  {selectedWalletId !== 'all' && (
+                    <div className="flex items-center">
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${activeBudgetTab === 'expenses' ? 'text-accent-blue bg-accent-blue/10 border-accent-blue/20' : 'text-accent-green bg-accent-green/10 border-accent-green/20'}`}>
+                        💳 Filter Dompet Aktif
                       </span>
+                    </div>
+                  )}
+
+                  {/* List Container with Capped Height & Scrollbar */}
+                  <div className="max-h-[240px] overflow-y-auto pr-1 space-y-3.5 custom-scrollbar">
+                    {activeBudgetTab === 'expenses' ? (
+                      /* Batas Anggaran Tab */
+                      expensesLoading ? (
+                        <p className="text-xs text-gray-500 py-6 text-center">Memuat anggaran...</p>
+                      ) : monthlyExpenses.length === 0 ? (
+                        <p className="text-xs text-gray-500 text-center py-6">Belum menetapkan limit bulanan.</p>
+                      ) : relevantMonthlyExpenses.length === 0 ? (
+                        <p className="text-xs text-gray-500 text-center py-6">Tidak ada limit yang terkait dengan dompet ini.</p>
+                      ) : (
+                        relevantMonthlyExpenses.map(expense => {
+                          const actualExpenseAmount = transactions
+                            .filter(tx => {
+                              if (tx.type !== 'expense' || !tx.transaction_date) return false;
+                              const txDate = new Date(tx.transaction_date);
+                              const now = new Date();
+                              const isCurrentMonth = txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+                              if (!isCurrentMonth) return false;
+                              if (selectedMemberId !== 'all' && tx.user_id !== selectedMemberId) return false;
+                              
+                              const matched = getMatchedBudget(tx, monthlyExpenses.filter(e => e.is_active));
+                              return matched && matched.id === expense.id;
+                            })
+                            .reduce((sum, tx) => sum + tx.amount, 0);
+
+                          const percent = Math.min(100, Math.round((actualExpenseAmount / expense.amount) * 100)) || 0;
+                          
+                          return (
+                            <div key={expense.id} className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="font-bold text-gray-200 truncate flex items-center gap-1.5">
+                                  {expense.name}
+                                  <span className={`w-1.5 h-1.5 rounded-full ${expense.priority === 'fixed' ? 'bg-blue-400' : 'bg-orange-400'}`} title={expense.priority} />
+                                </span>
+                                <span className={`font-extrabold text-[11px] ${percent > 90 ? 'text-accent-red animate-pulse' : percent > 75 ? 'text-amber-500' : 'text-gray-300'}`}>
+                                  {percent}%
+                                </span>
+                              </div>
+                              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-300 ${percent > 90 ? 'bg-accent-red shadow-[0_0_6px_rgba(239,68,68,0.5)]' : percent > 75 ? 'bg-amber-500' : 'bg-accent-blue'}`}
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                              <div className="flex justify-between text-[9px] text-gray-500 font-bold">
+                                <span>Riil: {formatCurrency(actualExpenseAmount)}</span>
+                                <div className="flex items-center gap-1">
+                                  {expense.account?.name && (
+                                    <span className="text-[8px] text-accent-blue/80 bg-accent-blue/5 px-1 py-0.2 rounded border border-accent-blue/10">
+                                      💳 {expense.account.name}
+                                    </span>
+                                  )}
+                                  <span>Batas: {formatCurrency(expense.amount)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )
+                    ) : (
+                      /* Target Pemasukan Tab */
+                      incomesLoading ? (
+                        <p className="text-xs text-gray-500 py-6 text-center">Memuat target pemasukan...</p>
+                      ) : monthlyIncomes.length === 0 ? (
+                        <p className="text-xs text-gray-500 text-center py-6">Belum menetapkan target pemasukan bulanan.</p>
+                      ) : relevantMonthlyIncomes.length === 0 ? (
+                        <p className="text-xs text-gray-500 text-center py-6">Tidak ada target yang terkait dengan dompet ini.</p>
+                      ) : (
+                        relevantMonthlyIncomes.map(income => {
+                          const actualIncomeAmount = transactions
+                            .filter(tx => {
+                              if (tx.type !== 'income' || !tx.transaction_date) return false;
+                              const txDate = new Date(tx.transaction_date);
+                              const now = new Date();
+                              const isCurrentMonth = txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
+                              if (!isCurrentMonth) return false;
+                              if (selectedMemberId !== 'all' && tx.user_id !== selectedMemberId) return false;
+                              
+                              const matched = getMatchedIncome(tx, monthlyIncomes.filter(i => i.is_active));
+                              return matched && matched.id === income.id;
+                            })
+                            .reduce((sum, tx) => sum + tx.amount, 0);
+
+                          const percent = Math.min(100, Math.round((actualIncomeAmount / income.amount) * 100)) || 0;
+                          
+                          return (
+                            <div key={income.id} className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span className="font-bold text-gray-200 truncate flex items-center gap-1.5">
+                                  {income.name}
+                                </span>
+                                <span className={`font-extrabold text-[11px] ${percent >= 100 ? 'text-accent-green' : percent > 75 ? 'text-emerald-400' : 'text-gray-300'}`}>
+                                  {percent}%
+                                </span>
+                              </div>
+                              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full transition-all duration-300 ${percent >= 100 ? 'bg-accent-green shadow-[0_0_6px_rgba(16,185,129,0.5)]' : percent > 75 ? 'bg-emerald-400' : 'bg-accent-blue'}`}
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                              <div className="flex justify-between text-[9px] text-gray-500 font-bold">
+                                <span>Riil: {formatCurrency(actualIncomeAmount)}</span>
+                                <div className="flex items-center gap-1">
+                                  {income.account?.name && (
+                                    <span className="text-[8px] text-accent-green/80 bg-accent-green/5 px-1 py-0.2 rounded border border-accent-green/10">
+                                      💳 {income.account.name}
+                                    </span>
+                                  )}
+                                  <span>Target: {formatCurrency(income.amount)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )
                     )}
-                    <span className="text-[10px] text-gray-500 font-bold bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
-                      {expensesLoading ? '...' : `${relevantMonthlyExpenses.length} Kategori`}
-                    </span>
                   </div>
                 </div>
 
-                {expensesLoading ? (
-                  <p className="text-xs text-gray-500 py-3 text-center">Memuat anggaran...</p>
-                ) : monthlyExpenses.length === 0 ? (
-                  <p className="text-xs text-gray-500 text-center py-2">Belum menetapkan limit bulanan.</p>
-                ) : relevantMonthlyExpenses.length === 0 ? (
-                  <p className="text-xs text-gray-500 text-center py-2">Tidak ada limit yang terkait dengan dompet ini.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {relevantMonthlyExpenses.slice(0, 4).map(expense => {
-                      const isMultipleOrLainnya = expense.category_id && (
-                        categoryCounts[expense.category_id] > 1 || 
-                        expense.category?.name?.toLowerCase() === 'lainnya'
-                      );
-
-                      // Filter transactions: respect the expense's wallet scope
-                      // If expense has account_id → only count that wallet's txns
-                      // If no account_id → count all wallets (or filtered wallet if one selected)
-                      const effectiveWalletId = expense.account_id || selectedWalletId;
-
-                      const actualExpenseAmount = filteredTransactions
-                        .filter(tx => {
-                          if (tx.type !== 'expense' || !tx.transaction_date) return false;
-                          const txDate = new Date(tx.transaction_date);
-                          const now = new Date();
-                          const isCurrentMonth = txDate.getMonth() === now.getMonth() && txDate.getFullYear() === now.getFullYear();
-                          if (!isCurrentMonth) return false;
-
-                          // Apply wallet scope for this specific budget entry
-                          if (effectiveWalletId !== 'all' && tx.account_id !== effectiveWalletId) return false;
-                          if (selectedMemberId !== 'all' && tx.user_id !== selectedMemberId) return false;
-
-                          if (tx.category_id !== expense.category_id) return false;
-
-                          if (isMultipleOrLainnya) {
-                            const budgetNameLower = expense.name.toLowerCase();
-                            return tx.notes && tx.notes.toLowerCase().includes(budgetNameLower);
-                          }
-
-                          return true;
-                        })
-                        .reduce((sum, tx) => sum + tx.amount, 0);
-
-                      const percent = Math.min(100, Math.round((actualExpenseAmount / expense.amount) * 100)) || 0;
-                      
-                      return (
-                        <div key={expense.id} className="space-y-1.5">
-                          <div className="flex justify-between text-xs">
-                            <span className="font-bold text-gray-200 truncate flex items-center gap-1.5">
-                              {expense.name}
-                              <span className={`w-1.5 h-1.5 rounded-full ${expense.priority === 'fixed' ? 'bg-blue-400' : 'bg-orange-400'}`} title={expense.priority} />
-                            </span>
-                            <span className={`font-extrabold ${percent > 90 ? 'text-accent-red animate-pulse' : percent > 75 ? 'text-amber-500' : 'text-gray-300'}`}>
-                              {percent}%
-                            </span>
-                          </div>
-                          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full rounded-full transition-all duration-300 ${percent > 90 ? 'bg-accent-red shadow-[0_0_6px_rgba(239,68,68,0.5)]' : percent > 75 ? 'bg-amber-500' : 'bg-accent-blue'}`}
-                              style={{ width: `${percent}%` }}
-                            />
-                          </div>
-                          <div className="flex justify-between text-[10px] text-gray-500 font-bold">
-                            <span>Riil: {formatCurrency(actualExpenseAmount)}</span>
-                            <div className="flex items-center gap-1.5">
-                              {expense.account?.name && (
-                                <span className="text-[9px] text-accent-blue/80 bg-accent-blue/10 px-1.5 py-0.5 rounded-full border border-accent-blue/15">
-                                  💳 {expense.account.name}
-                                </span>
-                              )}
-                              <span>Batas: {formatCurrency(expense.amount)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {relevantMonthlyExpenses.length > 4 && (
-                      <p className="text-[10px] text-gray-500 text-center italic pt-1">+{relevantMonthlyExpenses.length - 4} limit lainnya</p>
-                    )}
-                  </div>
-                )}
+                {/* Combined Widget Summary Footer */}
+                <div className="border-t border-white/5 pt-3.5 mt-2 flex items-center justify-between text-[11px] font-bold text-gray-400 bg-black/10 -mx-5 -mb-5 px-5 py-3 rounded-b-2xl">
+                  {activeBudgetTab === 'expenses' ? (
+                    <>
+                      <span>Total Anggaran Terfilter:</span>
+                      <span className="text-accent-blue font-extrabold">{formatCurrency(monthlyBudgetLimit)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Total Target Pemasukan Terfilter:</span>
+                      <span className="text-accent-green font-extrabold">{formatCurrency(monthlyIncomeTarget)}</span>
+                    </>
+                  )}
+                </div>
               </Card>
+
 
               {/* Debt Summary Widget */}
               <Card className="space-y-5 p-5 bg-[#0c0e1b]/60 border-white/5">

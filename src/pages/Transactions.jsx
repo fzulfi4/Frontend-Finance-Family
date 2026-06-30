@@ -9,6 +9,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useTransactions } from '../hooks/useTransactions';
 import { useWallets } from '../hooks/useWallets';
 import { useMembers } from '../hooks/useMembers';
+import { useMonthlyExpenses } from '../hooks/useMonthlyExpenses';
+import { useMonthlyIncomes } from '../hooks/useMonthlyIncomes';
 import Card from '../components/ui/Card';
 import EditTransactionModal from '../components/EditTransactionModal';
 import { useTranslation } from 'react-i18next';
@@ -39,6 +41,8 @@ const Transactions = () => {
   const { transactions, loading, updateTransaction, deleteTransaction } = useTransactions();
   const { wallets } = useWallets();
   const { members } = useMembers();
+  const { expenses: monthlyExpenses } = useMonthlyExpenses();
+  const { incomes: monthlyIncomes } = useMonthlyIncomes();
   const { user: currentUser } = useContext(AuthContext);
   const { t } = useTranslation();
 
@@ -80,6 +84,8 @@ const Transactions = () => {
       transactions: filtered,
       wallets,
       members,
+      monthlyExpenses,
+      monthlyIncomes,
       activeFilters: {
         period: periodLabel,
         wallet: walletLabel,

@@ -12,9 +12,11 @@ const Goals           = lazy(() => import('./pages/Goals'));
 const Transactions    = lazy(() => import('./pages/Transactions'));
 const Categories      = lazy(() => import('./pages/Categories'));
 const MonthlyExpenses = lazy(() => import('./pages/MonthlyExpenses'));
+const MonthlyIncomes  = lazy(() => import('./pages/MonthlyIncomes'));
 const FamilySettings  = lazy(() => import('./pages/FamilySettings'));
 const ResetPassword   = lazy(() => import('./pages/ResetPassword'));
 const Reports         = lazy(() => import('./pages/Reports'));
+const Panduan         = lazy(() => import('./pages/Panduan'));
 const Layout          = lazy(() => import('./components/Layout'));
 
 const PageLoader = () => (
@@ -80,8 +82,10 @@ function App() {
             <Route path="/debts"            element={<Debts />} />
             <Route path="/goals"            element={<Goals />} />
             <Route path="/monthly-expenses" element={<MonthlyExpenses />} />
+            <Route path="/monthly-incomes"  element={<MonthlyIncomes />} />
             <Route path="/family"           element={<FamilySettings />} />
             <Route path="/reports"          element={<Reports />} />
+            <Route path="/guide"            element={<Panduan />} />
           </Route>
 
           <Route path="/" element={

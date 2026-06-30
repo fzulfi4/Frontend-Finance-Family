@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(() => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('user_id');
+    localStorage.removeItem('last_activity');
     setToken(null);
     setUser(null);
   }, []);
@@ -42,6 +43,59 @@ export const AuthProvider = ({ children }) => {
     init();
   }, [token, fetchUser]);
 
+  // Sesi 1 Minggu dengan Auto-Logout Inaktivitas
+  useEffect(() => {
+    if (!token) return;
+
+    // Cek inaktivitas saat mount
+    const lastActivity = localStorage.getItem('last_activity');
+    if (lastActivity) {
+      const elapsed = Date.now() - parseInt(lastActivity, 10);
+      if (elapsed > 7 * 24 * 60 * 60 * 1000) {
+        logout();
+        return;
+      }
+    } else {
+      localStorage.setItem('last_activity', Date.now().toString());
+    }
+
+    let lastWrite = Date.now();
+
+    // Perbarui timestamp ketika ada aktivitas user
+    const handleActivity = () => {
+      const now = Date.now();
+      // Throttle pembaruan localStorage (maksimal 30 detik sekali)
+      if (now - lastWrite > 30000) {
+        localStorage.setItem('last_activity', now.toString());
+        lastWrite = now;
+      }
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('click', handleActivity);
+    window.addEventListener('scroll', handleActivity);
+
+    // Cek berkala setiap 5 menit
+    const interval = setInterval(() => {
+      const currentLastActivity = localStorage.getItem('last_activity');
+      if (currentLastActivity) {
+        const elapsed = Date.now() - parseInt(currentLastActivity, 10);
+        if (elapsed > 7 * 24 * 60 * 60 * 1000) {
+          logout();
+        }
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+      clearInterval(interval);
+    };
+  }, [token, logout]);
+
   const login = async (email, password) => {
     setLoading(true);
     setError(null);
@@ -51,6 +105,7 @@ export const AuthProvider = ({ children }) => {
       
       localStorage.setItem('access_token', access_token);
       localStorage.setItem('user_id', user_id);
+      localStorage.setItem('last_activity', Date.now().toString());
       
       setToken(access_token);
       return res.data;
@@ -84,6 +139,7 @@ export const AuthProvider = ({ children }) => {
       if (access_token) {
         localStorage.setItem('access_token', access_token);
         localStorage.setItem('user_id', user_id);
+        localStorage.setItem('last_activity', Date.now().toString());
         setToken(access_token);
       }
       return res.data;

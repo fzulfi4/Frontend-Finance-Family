@@ -35,6 +35,7 @@ const Login = () => {
   const [formData,        setFormData]        = useState({ email: '', password: '', full_name: '' });
   const [showPwd,         setShowPwd]         = useState(false);
   const [successMessage,  setSuccessMessage]  = useState('');
+  const [rememberMe,      setRememberMe]      = useState(false);
 
   const { login, register, forgotPassword, error, setError, loading } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -45,6 +46,15 @@ const Login = () => {
       navigate('/reset-password' + window.location.hash);
     }
   }, [navigate]);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
+    if (savedRememberMe && savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -60,6 +70,13 @@ const Login = () => {
         setSuccessMessage('Reset link sent! Please check your email.');
       } else if (isLogin) {
         await login(formData.email, formData.password);
+        if (rememberMe) {
+          localStorage.setItem('rememberedEmail', formData.email);
+          localStorage.setItem('rememberMe', 'true');
+        } else {
+          localStorage.removeItem('rememberedEmail');
+          localStorage.removeItem('rememberMe');
+        }
       } else {
         await register(formData.email, formData.password, formData.full_name);
       }
@@ -274,6 +291,22 @@ const Login = () => {
                     {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Remember Me Checkbox */}
+            {isLogin && !isForgotPwd && (
+              <div className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="rounded border-gray-600 bg-white/5 text-accent-blue focus:ring-accent-blue focus:ring-offset-dark-bg w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="rememberMe" className="text-xs text-gray-400 select-none cursor-pointer hover:text-gray-300">
+                  Ingat Saya (Remember Me)
+                </label>
               </div>
             )}
 

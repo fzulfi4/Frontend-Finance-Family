@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, ReceiptText, WalletCards, Target,
   LogOut, Settings, Tags, CalendarClock,
-  ChevronLeft, ChevronRight, Sparkles, FileSpreadsheet
+  ChevronLeft, ChevronRight, Sparkles, FileSpreadsheet, HelpCircle
 } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -18,14 +18,16 @@ const Sidebar = ({ collapsed, onToggle }) => {
     : 'U';
 
   const navItems = [
-    { name: t('dashboard'),       path: '/dashboard',         icon: LayoutDashboard },
-    { name: t('transactions'),    path: '/transactions',      icon: ReceiptText },
-    { name: t('categories'),      path: '/categories',        icon: Tags },
-    { name: t('debts'),           path: '/debts',             icon: WalletCards },
-    { name: t('goals'),           path: '/goals',             icon: Target },
-    { name: t('monthlyExpenses'), path: '/monthly-expenses',  icon: CalendarClock },
-    { name: t('family'),          path: '/family',            icon: Settings },
-    { name: 'Laporan',            path: '/reports',           icon: FileSpreadsheet, accent: true },
+    { name: t('dashboard'),       path: '/dashboard',         icon: LayoutDashboard, id: 'tour-sidebar-dashboard' },
+    { name: t('transactions'),    path: '/transactions',      icon: ReceiptText,     id: 'tour-sidebar-transactions' },
+    { name: t('categories'),      path: '/categories',        icon: Tags,            id: 'tour-sidebar-categories' },
+    { name: t('debts'),           path: '/debts',             icon: WalletCards,     id: 'tour-sidebar-debts' },
+    { name: t('goals'),           path: '/goals',             icon: Target,          id: 'tour-sidebar-goals' },
+    { name: t('monthlyExpenses'), path: '/monthly-expenses',  icon: CalendarClock,   id: 'tour-sidebar-expenses' },
+    { name: 'Pemasukan Bulanan',  path: '/monthly-incomes',   icon: CalendarClock,   id: 'tour-sidebar-incomes' },
+    { name: t('family'),          path: '/family',            icon: Settings,        id: 'tour-sidebar-family' },
+    { name: 'Laporan',            path: '/reports',           icon: FileSpreadsheet, accent: true, id: 'tour-sidebar-reports' },
+    { name: 'Panduan',            path: '/guide',             icon: HelpCircle,      id: 'tour-sidebar-guide' },
   ];
 
   return (
@@ -37,6 +39,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
             <NavLink
               key={item.path}
               to={item.path}
+              id={item.id}
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl
                  text-[0.625rem] font-bold tracking-wide transition-all duration-300 flex-shrink-0 relative ${
@@ -93,6 +96,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
               <NavLink
                 key={item.path}
                 to={item.path}
+                id={item.id}
                 title={collapsed ? item.name : undefined}
                 className={({ isActive }) =>
                   `relative flex items-center rounded-xl font-semibold transition-all duration-200 group

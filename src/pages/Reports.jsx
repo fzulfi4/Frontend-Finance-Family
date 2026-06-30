@@ -12,6 +12,7 @@ import { useWallets }         from '../hooks/useWallets';
 import { useGoals }           from '../hooks/useGoals';
 import { useDebts }           from '../hooks/useDebts';
 import { useMonthlyExpenses } from '../hooks/useMonthlyExpenses';
+import { useMonthlyIncomes } from '../hooks/useMonthlyIncomes';
 import { useFamily }          from '../hooks/useFamily';
 import { generateExcelReport } from '../utils/excelReport';
 
@@ -65,8 +66,9 @@ const Reports = () => {
   const { goals,        loading: loadingG  } = useGoals();
   const { debts,        loading: loadingD  } = useDebts();
   const { expenses: monthlyExpenses, loading: loadingM } = useMonthlyExpenses();
+  const { incomes: monthlyIncomes, loading: loadingI } = useMonthlyIncomes();
 
-  const isLoading = loadingTx || loadingW || loadingG || loadingD || loadingM;
+  const isLoading = loadingTx || loadingW || loadingG || loadingD || loadingM || loadingI;
   const [status, setStatus] = useState('idle');
   const [result, setResult] = useState(null);
   const [errMsg, setErrMsg] = useState('');
@@ -83,7 +85,7 @@ const Reports = () => {
     try {
       await new Promise(r => setTimeout(r, 300));
       const res = generateExcelReport({
-        transactions, wallets, goals, debts, monthlyExpenses,
+        transactions, wallets, goals, debts, monthlyExpenses, monthlyIncomes,
         familyName: family?.name || user?.full_name || 'Keluarga',
       });
       setResult(res);
@@ -106,6 +108,8 @@ const Reports = () => {
     { emoji: '🎯', title: 'Target Tabungan',      description: 'Progress, sisa, dan deadline tiap goal',              count: `${goals.length} goals`,        color: '#ec4899' },
     { emoji: '💰', title: 'Hutang & Piutang',     description: 'Detail aktif & lunas + persentase pelunasan',        count: `${debts.length} items`,        color: '#ef4444' },
     { emoji: '📋', title: 'Anggaran Bulanan',     description: 'Pos anggaran tetap/opsional vs pengeluaran nyata',   count: `${monthlyExpenses.length} pos`, color: '#a78bfa' },
+    { emoji: '📋', title: 'Target Pemasukan',     description: 'Pos target pemasukan bulanan vs realisasi nyata',   count: `${monthlyIncomes.length} pos`, color: '#34d399' },
+    { emoji: '📊', title: 'Analisis Pos Bulanan',  description: 'Pengeluaran & pemasukan per pos anggaran & target',   count: '1 sheet',             color: '#10b981' },
   ];
 
   return (
@@ -158,7 +162,7 @@ const Reports = () => {
           <div className="flex items-center gap-2.5 px-5 py-4 border-b border-dark-border">
             <Layers size={14} className="text-accent-blue" />
             <h2 className="text-sm font-bold text-white">Isi Laporan Excel</h2>
-            <span className="ml-auto badge badge-blue">8 Sheet</span>
+            <span className="ml-auto badge badge-blue">10 Sheet</span>
           </div>
 
           {/* Sheet rows */}
