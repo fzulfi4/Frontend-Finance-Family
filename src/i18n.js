@@ -244,6 +244,17 @@ const resources = {
       language: 'Bahasa',
       indonesian: 'Indonesia',
       english: 'Inggris',
+
+      // AI Chat Widget
+      aiChatTitle: 'Asisten Keuangan AI',
+      aiChatSubtitle: 'Tanya apa saja tentang keuangan Anda',
+      aiChatPlaceholder: 'Tanya sesuatu... mis: Bulan ini saya boros di mana?',
+      aiChatSend: 'Kirim',
+      aiChatSending: 'Mengirim...',
+      aiChatWelcome: 'Halo! 👋 Saya **FinAI**, asisten keuangan keluarga Anda. Saya bisa membantu menganalisis pengeluaran, memberi saran hemat, atau menjawab pertanyaan seputar keuangan Anda. Apa yang ingin Anda tanyakan?',
+      aiChatError: 'Maaf, AI sedang tidak tersedia. Silakan coba lagi.',
+      aiChatClear: 'Bersihkan Chat',
+      aiChatPoweredBy: 'Didukung oleh Gemini AI',
     }
   },
   en: {
@@ -488,6 +499,17 @@ const resources = {
       language: 'Language',
       indonesian: 'Indonesian',
       english: 'English',
+
+      // AI Chat Widget
+      aiChatTitle: 'AI Financial Assistant',
+      aiChatSubtitle: 'Ask anything about your finances',
+      aiChatPlaceholder: 'Ask something... e.g. Where did I overspend this month?',
+      aiChatSend: 'Send',
+      aiChatSending: 'Sending...',
+      aiChatWelcome: 'Hello! 👋 I am **FinAI**, your family financial assistant. I can help analyze your spending, give saving tips, or answer any financial questions. What would you like to ask?',
+      aiChatError: 'Sorry, the AI is currently unavailable. Please try again.',
+      aiChatClear: 'Clear Chat',
+      aiChatPoweredBy: 'Powered by Gemini AI',
     }
   }
 };

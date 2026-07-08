@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TourOverlay from './TourOverlay';
+import AIChatWidget from './AIChatWidget';
 
 const Layout = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -16,6 +17,8 @@ const Layout = () => {
         </div>
       </main>
       <TourOverlay />
+      {/* AI Chat Widget — tersedia di semua protected pages */}
+      <AIChatWidget />
     </div>
   );
 };
