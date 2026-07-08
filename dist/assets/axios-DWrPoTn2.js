@@ -1,1 +1,0 @@
-import{bt as e}from"./vendor-C4axShxy.js";var t=e.create({baseURL:`/api/v1`,headers:{"Content-Type":`application/json`}});t.interceptors.request.use(e=>{let t=localStorage.getItem(`access_token`);return t&&(e.headers.Authorization=`Bearer ${t}`),e},e=>Promise.reject(e));export{t};
