@@ -69,6 +69,19 @@ const SUGGESTIONS_EN = [
   'Analyze my debts',
 ];
 
+// ─── AI Models ───────────────────────────────────────────────────────────────
+const INITIAL_AI_MODELS = [
+  { id: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', status: '✅ Sangat Cepat' },
+  { id: 'gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', status: '✅ Super Ringan' },
+  { id: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview', status: '✅ Pintar' },
+  { id: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview', status: '✅ Stabil' },
+  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', status: '❌ Butuh Billing' },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', status: '⚠️ Rawan Limit' },
+  { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', status: '⚠️ Rawan Limit' },
+  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', status: '⚠️ Rawan Limit' },
+  { id: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash-Lite', status: '⚠️ Rawan Limit' },
+];
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 const AIChatWidget = () => {
   const { t } = useTranslation();
@@ -78,8 +91,10 @@ const AIChatWidget = () => {
   const [messages, setMessages] = useState([]); // [{role: 'user'|'model', content: string}]
   const [input, setInput] = useState('');
   const [hasWelcomed, setHasWelcomed] = useState(false);
+  const [aiModels, setAiModels] = useState(INITIAL_AI_MODELS);
+  const [selectedModel, setSelectedModel] = useState(INITIAL_AI_MODELS[0].id);
 
-  const { sendMessage, loading } = useAIChat();
+  const { sendMessage, checkAvailableModel, loading } = useAIChat();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const suggestions = lang === 'en' ? SUGGESTIONS_EN : SUGGESTIONS_ID;
@@ -91,17 +106,55 @@ const AIChatWidget = () => {
     }
   }, [messages, isOpen]);
 
-  // Fokus ke input saat panel dibuka
+  // Auto-detect model on mount
+  useEffect(() => {
+    const detectModel = async () => {
+      const savedModel = localStorage.getItem('finai_working_model');
+      if (savedModel) {
+        setSelectedModel(savedModel);
+      } else {
+        const workingModel = await checkAvailableModel();
+        if (workingModel) {
+          setSelectedModel(workingModel);
+          localStorage.setItem('finai_working_model', workingModel);
+        }
+      }
+    };
+    detectModel();
+  }, [checkAvailableModel]);
+
+  // Fokus ke input saat panel dibuka dan inisialisasi history
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 300);
-      // Tampilkan pesan selamat datang sekali
+      // Tampilkan pesan selamat datang sekali atau muat history
       if (!hasWelcomed) {
-        setMessages([{ role: 'model', content: t('aiChatWelcome') }]);
+        const savedHistory = localStorage.getItem('finai_chat_history');
+        if (savedHistory) {
+          try {
+            const parsed = JSON.parse(savedHistory);
+            if (parsed && parsed.length > 0) {
+              setMessages(parsed);
+            } else {
+              setMessages([{ role: 'model', content: t('aiChatWelcome') }]);
+            }
+          } catch (e) {
+            setMessages([{ role: 'model', content: t('aiChatWelcome') }]);
+          }
+        } else {
+          setMessages([{ role: 'model', content: t('aiChatWelcome') }]);
+        }
         setHasWelcomed(true);
       }
     }
   }, [isOpen, hasWelcomed, t]);
+
+  // Simpan history ke localStorage setiap ada perubahan messages
+  useEffect(() => {
+    if (hasWelcomed && messages.length > 0) {
+      localStorage.setItem('finai_chat_history', JSON.stringify(messages));
+    }
+  }, [messages, hasWelcomed]);
 
   const handleSend = useCallback(async (text) => {
     const messageText = (text || input).trim();
@@ -120,15 +173,26 @@ const AIChatWidget = () => {
       .map(m => ({ role: m.role, content: m.content }));
 
     try {
-      const reply = await sendMessage(messageText, apiHistory, lang);
+      const reply = await sendMessage(messageText, apiHistory, lang, selectedModel);
       setMessages(prev => [...prev, { role: 'model', content: reply }]);
-    } catch {
+      // If success, maybe reset to ✅ if it was ❌? No, let's just leave it or reset to original.
+    } catch (err) {
+      // Mark current model as unavailable
+      setAiModels(prev => prev.map(m => 
+        m.id === selectedModel ? { ...m, status: '❌ Tidak Tersedia' } : m
+      ));
+
+      const isQuotaError = err.message && (err.message.includes('429') || err.message.includes('Limit') || err.message.includes('kuota') || err.message.includes('tidak tersedia'));
+      const errorResponse = isQuotaError 
+        ? `${t('aiChatError')}\n\n*Info: Model saat ini sibuk atau limit kuota habis. Silakan pilih model lain dari menu dropdown di atas (Rekomendasi: Gemini 3 Flash Preview).*`
+        : t('aiChatError');
+        
       setMessages(prev => [...prev, {
         role: 'error',
-        content: t('aiChatError'),
+        content: errorResponse,
       }]);
     }
-  }, [input, loading, messages, sendMessage, lang, t]);
+  }, [input, loading, messages, sendMessage, lang, t, selectedModel]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -139,6 +203,7 @@ const AIChatWidget = () => {
 
   const handleClear = () => {
     setMessages([{ role: 'model', content: t('aiChatWelcome') }]);
+    localStorage.removeItem('finai_chat_history');
   };
 
   return (
@@ -196,7 +261,20 @@ const AIChatWidget = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white leading-tight truncate">{t('aiChatTitle')}</p>
-            <p className="text-[10px] text-gray-400 leading-tight truncate">{t('aiChatSubtitle')}</p>
+            <div className="mt-1 relative group">
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="appearance-none bg-white/10 text-[10px] text-gray-200 py-0.5 pl-2 pr-6 rounded border border-white/20 focus:outline-none focus:border-indigo-400 w-full cursor-pointer hover:bg-white/20 transition-all"
+              >
+                {aiModels.map(m => (
+                  <option key={m.id} value={m.id} className="bg-slate-900 text-white">
+                    {m.label} ({m.status.split(' ')[0]})
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={10} className="absolute right-2 top-1.5 text-gray-400 pointer-events-none group-hover:text-white" />
+            </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {messages.length > 1 && (

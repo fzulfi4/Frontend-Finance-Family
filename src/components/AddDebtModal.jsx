@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { WalletCards } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import BaseModal from './ui/BaseModal';
@@ -16,8 +16,30 @@ const AddDebtModal = ({ isOpen, onClose, onSuccess }) => {
     notes: ''
   });
 
+  const [accounts, setAccounts] = useState([]);
+  const [accountId, setAccountId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const fetchAccounts = async () => {
+    try {
+      const res = await api.get('/accounts');
+      const fetchedAccounts = res.data.data || [];
+      setAccounts(fetchedAccounts);
+      if (fetchedAccounts.length > 0) {
+        setAccountId(fetchedAccounts[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to fetch accounts', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchAccounts();
+      setError('');
+    }
+  }, [isOpen]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -25,12 +47,18 @@ const AddDebtModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!accountId) {
+      setError(t('pleaseSelectWallet') || 'Silakan pilih dompet');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       await api.post('/debts', {
         ...formData,
+        account_id: accountId,
         amount: parseFloat(formData.amount),
         due_date: formData.due_date ? formData.due_date : undefined
       });
@@ -135,6 +163,23 @@ const AddDebtModal = ({ isOpen, onClose, onSuccess }) => {
             value={formData.notes}
             onChange={handleChange}
           />
+        </div>
+
+        <div>
+          <label className="input-label">{t('selectWallet') || 'Pilih Dompet'}</label>
+          <select
+            className="input-field"
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            required
+          >
+            <option value="" disabled>{t('selectWalletPlaceholder') || 'Pilih Dompet'}</option>
+            {accounts.map(acc => (
+              <option key={acc.id} value={acc.id}>
+                {acc.name} ({new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(acc.balance)})
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex gap-4 pt-4">
